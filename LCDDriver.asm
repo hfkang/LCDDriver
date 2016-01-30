@@ -1,6 +1,23 @@
-    list p=18F4620
     #include <p18f4620.inc>
-    CONFIG OSC=HS, IESO = ON
+
+    list P=18F4620, F=INHX32, C=160, N=80, ST=OFF, MM=OFF, R=DEC
+
+;;;;;;Configuration Bits;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		CONFIG OSC=HS, FCMEN=OFF, IESO=OFF
+		CONFIG PWRT = OFF, BOREN = SBORDIS, BORV = 3
+		CONFIG WDT = OFF, WDTPS = 32768
+		CONFIG MCLRE = ON, LPT1OSC = OFF, PBADEN = OFF, CCP2MX = PORTC
+		CONFIG STVREN = ON, LVP = OFF, XINST = OFF
+		CONFIG DEBUG = OFF
+		CONFIG CP0 = OFF, CP1 = OFF, CP2 = OFF, CP3 = OFF
+		CONFIG CPB = OFF, CPD = OFF
+		CONFIG WRT0 = OFF, WRT1 = OFF, WRT2 = OFF, WRT3 = OFF
+		CONFIG WRTB = OFF, WRTC = OFF, WRTD = OFF
+		CONFIG EBTR0 = OFF, EBTR1 = OFF, EBTR2 = OFF, EBTR3 = OFF
+		CONFIG EBTRB = OFF
+
+    
     
     cblock 0xD0
     delay1
@@ -41,11 +58,10 @@ lcdData macro
     
     org 0
     goto start
-    org 8
-    goto Stop
+    org 0x8
+    retfie
     org 0x18
-    goto Stop
-
+    retfie 
   
 
 MAIN CODE 
@@ -56,7 +72,16 @@ start
     movlw 0x0F
     movwf ADCON1
     clrf TRISD
-    delay 0xFF
+    clrf INTCON
+    clrf TRISA
+    movlw b'1110010'
+    movwf TRISB
+    clrf    TRISC
+    clrf    LATA
+    clrf    LATB
+    clrf    LATC
+    
+    
     
     lcdInst B'00110011'
     lcdInst B'00110010'
@@ -65,7 +90,24 @@ start
     lcdInst B'00000110'
     lcdInst B'00000001' 
     
-    
+test     btfss		PORTB,1   ;Wait until data is available from the keypad
+         goto		test
+
+         swapf		PORTB,W     ;Read PortB<7:4> into W<3:0>
+         andlw		0x0F
+	 rlncf		WREG, W		;Program Memory in PIC18 counts up by 2
+         call     	KPHexToChar ;Convert keypad value to LCD character (value is still held in W)
+	 lcdData
+	 
+         btfsc		PORTB,1     ;Wait until key is released
+         goto		$-2
+         goto    	test
+
+KPHexToChar
+          addwf     PCL,f
+          dt        "123A456B789C*0#D"
+
+          
 
     
 ReadTable
@@ -93,7 +135,7 @@ Read   tblrd+*
 Stop bra Stop
 	
 Table
-    db "Prepare your butts.",0      
+    db "Prepare thy     anuses.",0      
     
     
 DELAY_ROUTINE 
