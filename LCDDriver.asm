@@ -3,9 +3,9 @@
         
 #define RS  LATD,2
 #define E   LATD,3
-#define LCD_DELAY_DURATION  0x23
+#define LCD_DELAY_DURATION  0x2C
     
-   udata 0x150
+   udata 
 delay1	    res 1
 delay2	    res 1
 delay3	    res 1
@@ -15,33 +15,12 @@ keypress    res 1
 
 
 
+
     code 
     global LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
+    
 
  
-
-old_start
-    movlw 0
-    movwf lcdCursor
-    clrf LATD
-    movlw 0x0F
-    movwf ADCON1
-    clrf TRISD
-    clrf INTCON
-    clrf TRISA
-    movlw b'11110010'
-    movwf TRISB
-    clrf    TRISC
-    clrf    LATA
-    clrf    LATB
-    clrf    LATC
-   
-    lcdInst B'00110011'
-    lcdInst B'00110010'
-    lcdInst B'00101000'
-    lcdInst B'00001111'
-    lcdInst B'00000110'
-    lcdInst B'00000001' 
     
 READ_KEYPAD     
 	 btfss		PORTB,1   ;Wait until data is available from the keypad
@@ -57,12 +36,12 @@ READ_KEYPAD
    
 
 DISP_TEXT   	    
-	    lcdHomeLine
-	    lcdClear
-	    movlw 0
-	    movwf lcdCursor
-	    tblrd*
-	    movf    TABLAT,W
+	lcdHomeLine
+	lcdClear
+	movlw 0
+	movwf lcdCursor
+	tblrd*
+	movf    TABLAT,W
 Again
     lcdData
     word_wrap lcdCursor
@@ -109,13 +88,15 @@ NIBBLE_LCD
     mask_bits LATD,0xF0
     bcf E
     delay LCD_DELAY_DURATION
-    bsf E
+    bsf E    
+    delay LCD_DELAY_DURATION
     swapf lcd_buffer,1	    
     movf lcd_buffer, 0	    ;recover original data
     mask_bits LATD,0xF0
     bcf E
     delay LCD_DELAY_DURATION
     bsf E
+    delay LCD_DELAY_DURATION
     return 
     
     end
