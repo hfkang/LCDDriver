@@ -1,6 +1,7 @@
     #include <p18f4620.inc>
     #include <LCDDriver.inc>
     #include <MACROS.inc>
+    #include <Variables.inc>
 
     list P=18F4620, F=INHX32, C=160, N=80, ST=OFF, MM=OFF, R=DEC
 
@@ -20,9 +21,9 @@
 		CONFIG EBTRB = OFF
 
 		org 0x0
-		goto start
+		goto	start
 		org 0x8		
-		call DIST
+		goto	isr
 		org 0x18	;low priority (ultrasonic ping)
 		retfie
 MAIN CODE 
@@ -47,43 +48,62 @@ Cont6
 Cont7
     db "Container 7     200cm",0
     
+isr
+	btfsc	INTCON,	    0	;branch if it was a port thing
+	call	DIST,	    1
+	btfsc	INTCON3,    1    ;encoder 1
+	call	ENCODER1,   1
+	btfsc	INTCON3,    0	 ;encoder 2
+	call	ENCODER2,   1
+	retfie
 start
-    
-    movlw	B'01110000'	;Set internal oscillator frequency to 8MHz
-    movwf	OSCCON
-    bsf		OSCTUNE, 6	;Enable PLL - oscillator speed = 32MHz
-    
+    movlw	B'01110010'	;Set internal oscillator frequency to 8MHz
+    movwf	OSCCON		
+		
     bcf		RCON,7		;disable interrupt priority
-    movlw	B'11001000'	
+    movlw	B'11011000'	
     movwf	INTCON		;config interrupts for delta B, en High,low priority
-    movlw	B'10000001'	;low priority for portb changing, interupt on rising edge
+    movlw	B'11110101'	;low priority for portb changing, interupt on rising edge
     movwf	INTCON2		
+    movlw	B'00011000'	;Enable edge interrupt for RB2
+    movwf	INTCON3
     
     movlw	b'00000011'	;Analog In on 0, 1
     movwf	TRISA		;for PORTA
-    movlw	b'11110011'	;keypad and ultrasonic inputs on PORTB
+    movlw	b'11110111'	;keypad and ultrasonic inputs on PORTB
     movwf	TRISB		;for PORTB
     clrf	TRISC		;set PORTC as output    
-    clrf	TRISD		;set PORTD as output
+    movlw	b'00000011'	;D1 as input
+    movwf	TRISD		;set PORTD as output
 
     clrf	LATA
     clrf	LATB
     clrf	LATC
     clrf	LATD
+    
+    clrf	LeftL
+    clrf	LeftH
+    
+    ;bsf		LATD,4
+    ;bcf		LATD,4
+    ;bra		$-4
 
     movlw	B'00001101'	;configure ADCON1
     movwf	ADCON1		
     movlw	B'00110111'	;configure ADCON2
     movwf	ADCON2
-    ;call	CONFIG_PWM	
+    call	CONFIG_PWM	
     
-    
-    movlw	B'10011000'	;Configure Timer3 for PWM measurement, 1 for CPP
-    movwf	T3CON		;8bit prescaler from Fosc/4 in 16 bit mode
-    
+    movlw	B'01000111'	;Configure Timer0 for PWM measurement, 1 for CPP
+    movwf	T0CON		;8bit prescaler from Fosc/4 in 16 bit mode 
+
+
     delay	0x50		;wait for LCD to initialie 
-    call	LCD_INIT    
+    call	LCD_INIT     
     
+f    call	disp_encoders
+    delay	0xFF
+    goto	f
     
     readTable	Start_Msg
     call	DISP_TEXT
@@ -95,9 +115,15 @@ read
     ;movwf	LATC		;write current state onto the PORTC LEDS
     ;call	READ_KEYPAD		
     ;bra		read		;repeat on keypress! Infinite loop! 
+ultra
+    call	PING
+    call	SuperDelay
+    goto	ultra
     
 Disp_Data    
     call	PING
+    call	READ_KEYPAD
+    
     readTable	Data_Prompt
     call	DISP_TEXT
     call	READ_KEYPAD		;gets requested container from user
@@ -157,11 +183,12 @@ Container7
     goto	Disp_Data
     
     
-    
-    
-	
 Stop	bra 	Stop	
-	
+    
+T0Overflow
+	comf	LATC
+    	bcf	INTCON,TMR0IF
+    retfie	
 
 SuperDelay
     delay 0xFF
@@ -170,12 +197,10 @@ SuperDelay
     delay 0xFF
     delay 0xFF
     delay 0xFF    
-    delay 0xFF
     delay 0xFF    
     delay 0xFF
-    delay 0xFF
-    delay 0xFF
-    delay 0xFF
+    delay 0xFF    
+
     return
     
     end

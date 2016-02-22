@@ -3,7 +3,7 @@
         
 #define RS  LATD,2
 #define E   LATD,3
-#define LCD_DELAY_DURATION  0x2C
+#define LCD_DELAY_DURATION  0x20
     
    udata 
 delay1	    res 1
@@ -13,14 +13,9 @@ lcd_buffer  res 1
 lcdCursor   res 1
 keypress    res 1 
 
-
-
-
     code 
     global LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
     
-
- 
     
 READ_KEYPAD     
 	 btfss		PORTB,1   ;Wait until data is available from the keypad

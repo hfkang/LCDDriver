@@ -8,17 +8,9 @@
 ; NumH, NumL
 ; TenK, Thou, Hund, Tens, Ones
     #include <p18f4620.inc>
+    #include <Variables.inc>
 
     
-    udata
-NumH
-NumL
-TenK
-Thou
-Hund
-Tens
-Ones  
-		
     code
     global bin8_BCD,bin16_BCD
 
@@ -85,6 +77,7 @@ Lb4
         addwf   Thou, F 
         btfss   STATUS,C 
         bra		Lb4 
+	
 
         retlw   0
 	end 
