@@ -47,7 +47,6 @@ Cont6
     db "Container 6     150cm",0
 Cont7
     db "Container 7     200cm",0
-    
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
@@ -73,7 +72,7 @@ start
     movlw	b'11110111'	;keypad and ultrasonic inputs on PORTB
     movwf	TRISB		;for PORTB
     clrf	TRISC		;set PORTC as output    
-    movlw	b'00000011'	;D1 as input
+    movlw	b'00000001'	;D1 as input
     movwf	TRISD		;set PORTD as output
 
     clrf	LATA
@@ -83,6 +82,8 @@ start
     
     clrf	LeftL
     clrf	LeftH
+    clrf	RightL
+    clrf	RightH
     
     ;bsf		LATD,4
     ;bcf		LATD,4
@@ -101,9 +102,18 @@ start
     delay	0x50		;wait for LCD to initialie 
     call	LCD_INIT     
     
-f    call	disp_encoders
+    ;call	STEPPER
+    ;bra		$-2
+
+;f   bsf		LATD,1
+;    delay	0x10
+;    bcf		LATD,1
+;    delay	0x10
+;    goto	f
+    
+g   call	disp_encoders
     delay	0xFF
-    goto	f
+    goto	g
     
     readTable	Start_Msg
     call	DISP_TEXT

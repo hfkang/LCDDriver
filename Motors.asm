@@ -1,9 +1,10 @@
     #include <p18f4620.inc>
     #include <MACROS.inc>
     
-
+#define STEP	LATD,1
+    
     code
-    global	CONFIG_PWM
+    global	CONFIG_PWM, STEPPER
     
 CONFIG_PWM
     movlw	B'01100011'	;configure PR2
@@ -20,6 +21,10 @@ CONFIG_PWM
     movwf	CCP2CON
     movlw	B'00000101'	;configure T2CON, set prescaler to 4
     movwf	T2CON
-    
     return 
+    
+STEPPER
+    bsf		STEP
+    bcf		STEP
+    return
     end
