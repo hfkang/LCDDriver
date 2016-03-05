@@ -26,6 +26,13 @@
 		goto	isr
 		org 0x18	;low priority (ultrasonic ping)
 		retfie
+
+#define	    fourMeters	    0x06    ;check on the high bit for the encoders
+#define RS  LATD,2
+#define E   LATD,3
+#define LCD_DELAY_DURATION  0x20	
+#define	STEPPER_SPEED	    0x20
+		
 MAIN CODE 
 Start_Msg
     db "Press any key tobegin...",0
@@ -34,45 +41,52 @@ Prog_Msg
 Data_Prompt
     db "Press key  to   get loc.",0
 Cont1
-    db "Container 1     40cm",0
+    db "Bin 1     ",0
 Cont2
-    db "Container 2     60cm",0
+    db "Bin 2     ",0
 Cont3
-    db "Container 3     70cm",0
+    db "Bin 3     ",0
 Cont4
-    db "Container 4     80cm",0
+    db "Bin 4     ",0
 Cont5
-    db "Container 5     100cm",0
+    db "Bin 5     ",0
 Cont6
-    db "Container 6     150cm",0
+    db "Bin 6     ",0
 Cont7
-    db "Container 7     200cm",0
+    db "Bin 7     ",0
+IRMsg
+    db "Infrared:",0
+ReverseMsg
+    db "Entering Return",0
+    
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
 	btfsc	INTCON3,    1    ;encoder 1
 	call	ENCODER1,   1
-	btfsc	INTCON3,    0	 ;encoder 2
+	btfsc	INTCON,	    1	 ;encoder 2 on int0, RB0
 	call	ENCODER2,   1
 	retfie
 start
     movlw	B'01110010'	;Set internal oscillator frequency to 8MHz
     movwf	OSCCON		
-		
+    clrf	direction
+    
     bcf		RCON,7		;disable interrupt priority
     movlw	B'11011000'	
     movwf	INTCON		;config interrupts for delta B, en High,low priority
     movlw	B'11110101'	;low priority for portb changing, interupt on rising edge
     movwf	INTCON2		
-    movlw	B'00011000'	;Enable edge interrupt for RB2
+    movlw	B'10010000'	;Enable edge interrupt for RB2
     movwf	INTCON3
     
     movlw	b'00000011'	;Analog In on 0, 1
     movwf	TRISA		;for PORTA
     movlw	b'11110111'	;keypad and ultrasonic inputs on PORTB
     movwf	TRISB		;for PORTB
-    clrf	TRISC		;set PORTC as output    
-    movlw	b'00000001'	;D1 as input
+    movlw	b'00000001'
+    movwf   	TRISC		;set PORTC as output    , but c0 is input 
+    movlw	b'00000000'	
     movwf	TRISD		;set PORTD as output
 
     clrf	LATA
@@ -84,56 +98,98 @@ start
     clrf	LeftH
     clrf	RightL
     clrf	RightH
-    
-    ;bsf		LATD,4
-    ;bcf		LATD,4
-    ;bra		$-4
+    clrf	IRState
+    clrf	BinNum		;clear important registers. 
+    clrf	PoleLocH
+    clrf	PoleLocL
 
-    movlw	B'00001101'	;configure ADCON1
+    movlw	B'00001101'	;configure ADCON1, Analog in for RA0, RA1 
     movwf	ADCON1		
-    movlw	B'00110111'	;configure ADCON2
+    movlw	B'10110111'	;configure ADCON2
     movwf	ADCON2
     call	CONFIG_PWM	
-    
+    stopPWM
+ 
     movlw	B'01000111'	;Configure Timer0 for PWM measurement, 1 for CPP
     movwf	T0CON		;8bit prescaler from Fosc/4 in 16 bit mode 
-
-
     delay	0x50		;wait for LCD to initialie 
     call	LCD_INIT     
-    
-    ;call	STEPPER
-    ;bra		$-2
-
-;f   bsf		LATD,1
-;    delay	0x10
-;    bcf		LATD,1
-;    delay	0x10
-;    goto	f
-    
-g   call	disp_encoders
-    delay	0xFF
-    goto	g
     
     readTable	Start_Msg
     call	DISP_TEXT
     call	READ_KEYPAD		;call in keypad. gets a value and returns
     readTable	Prog_Msg
     call	DISP_TEXT
-read   
-    ;call	ADC
-    ;movwf	LATC		;write current state onto the PORTC LEDS
-    ;call	READ_KEYPAD		
-    ;bra		read		;repeat on keypress! Infinite loop! 
-ultra
     call	PING
+    
+    
+  
+    ;BEGIN MAIN OPERATION LOOP (forward dir)
+Main_loop    
+    call	PING
+    call	LCD_INIT
+    call	dispPING		;send out ultrasonic pulse
     call	SuperDelay
-    goto	ultra
+    bra		Main_loop
+ir    
+    stopPWM
+    readTable	IRMsg
+    call	DISP_TEXT
+    call	ADC
+    disp16bit	ADRESH,ADRESL		;show ADC result
+    movff	BinNum,NumL		
+    call	bin8_BCD
+    lcdNewLine
+    call	Disp_Number		;show current bin number 
+    movff	IRState,NumL		;show ir state vector
+    call	bin8_BCD
+    call	Disp_Number
+    delay	0xfF
+    startPWM
+    ;call	disp_encoders 
     
-Disp_Data    
-    call	PING
+    movlw	0x04
+    cpfsgt	BinNum			;IRState has the number of bins we've read
+    bra		Main_loop
+
+    ;movlw	0x20			;reverse on two encoder ticks to right
+    ;cpfslt	RightL			
+    ;bra	Back_loop			;call reversal method 
+        
+    ;END MAIN OPERATION LOOP
+    ;BEGIN REVERSE LOOP
+    call	REVERSE			;enter reverrse mode 
+    stopPWM
+    readTable	ReverseMsg
+    call	DISP_TEXT
     call	READ_KEYPAD
+    startPWM
+Back_loop
+    ;readTable	IRMsg
+    ;call	DISP_TEXT
+    stopPWM
+    readTable	IRMsg
+    call	DISP_TEXT
+    call	ADC
+    movff	ADRESL,NumL
+    movff	ADRESH,NumH
+    call	bin16_BCD
+    call	Disp_Number
+    movff	BinNum,NumL
+    call	bin8_BCD
+    lcdNewLine
+    call	Disp_Number
+    startPWM
     
+    
+    movlw	8
+    cpfseq	IRState
+    bra		Back_loop		;when bin is zero agian go to end
+    stopPWM
+    
+    ;END REVERSE LOOP
+    
+Disp_Data				;show results 
     readTable	Data_Prompt
     call	DISP_TEXT
     call	READ_KEYPAD		;gets requested container from user
@@ -159,8 +215,14 @@ Disp_Data
 Container1
     readTable	Cont1
     call	DISP_TEXT
-    call	READ_KEYPAD	
-    goto	Disp_Data
+    movff	B1L,NumL
+    movff	B1H,NumH
+    call	bin16_BCD
+    call	Disp_Number
+    call	READ_KEYPAD
+
+    goto	Disp_Data    
+
 Container2
     readTable	Cont2
     call	DISP_TEXT
@@ -194,6 +256,29 @@ Container7
     
     
 Stop	bra 	Stop	
+    
+    ;************************************************************************
+    ;Stepper Motor Testing
+    ;************************************************************************
+ss  call	STEPPER
+    delay	STEPPER_SPEED
+    bra	ss
+    return
+    
+    ;************************************************************************
+    ;PWM Forward Reverse Testing
+    ;************************************************************************
+testPWM
+    clrf	LATD
+    call	FORWARD
+    startPWM
+    call	READ_KEYPAD
+    stopPWM
+    clrf	LATD
+    call	REVERSE
+    startPWM
+    call	READ_KEYPAD
+    return
     
 T0Overflow
 	comf	LATC

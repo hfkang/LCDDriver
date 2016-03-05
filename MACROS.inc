@@ -56,3 +56,88 @@ readTable macro TableLabel
     movlw low TableLabel
     movwf TBLPTRL
     endm
+    
+incBinNumber macro
+	bcf	IRState,5
+	bcf	IRState,4	;reset FSM state vector 
+	incf	IRState	
+	movff	IRState,tempBin	;tempBin for use in the destructive method lateron
+	movff	IRState,BinNum
+	endm
+	
+decBinNumber macro
+	bcf	IRState,5
+	bcf	IRState,4	;reset FSM state vector 
+	decf	IRState	
+	movff	IRState,tempBin	;tempBin for use in the destructive method lateron
+	movff	IRState,BinNum
+	endm
+ 
+storeBinData macro LocH, LocL, BinStatusReg, Side, Color 
+	local	    _rear
+	local	    _end
+	movlw	    Side
+	btfsc	    WREG,0
+	bra	    _rear	;if the Side bit is set then store color only
+	movff	    RightL, LocL	;this is for the front side bins
+	movff	    RightH, LocH
+	movlw	    Color	    	;store color in wreg to be stored in reg
+	movwf	    BinStatusReg
+	bra	    _end
+_rear	movlw	    Color
+	rlncf	    WREG,1
+	mask_bits   BinStatusReg, B'00000010'	;write in the next bit 
+_end	
+	endm 
+	
+storeBin macro BinNumber, Side, Color
+	local	    bin1,bin2,bin3,bin4,bin5,bin6,bin7,_end
+	decf	    BinNumber
+	bz	    bin1
+	decf	    BinNumber
+	bz	    bin2
+	decf	    BinNumber
+	bz	    bin3
+	decf	    BinNumber
+	bz	    bin4
+	decf	    BinNumber
+	bz	    bin5
+	decf	    BinNumber
+	bz	    bin6
+	bra	    bin7
+bin1	storeBinData B1H, B1L, B1S, Side, Color
+	bra	    _end
+bin2	storeBinData B2H, B2L, B2S, Side, Color
+	bra	    _end	
+bin3	storeBinData B3H, B3L, B3S, Side, Color
+	bra	    _end	
+bin4	storeBinData B4H, B4L, B4S, Side, Color
+	bra	    _end
+bin5	storeBinData B5H, B5L, B5S, Side, Color
+	bra	    _end
+bin6	storeBinData B6H, B6L, B6S, Side, Color
+	bra	    _end
+bin7	storeBinData B7H, B7L, B7S, Side, Color
+	bra	    _end
+_end	
+	endm
+	
+stopPWM macro
+	movlw	    0x00
+	mask_bits   CCP1CON, 0x0F
+	movlw	    0x00
+	mask_bits   CCP2CON, 0x0F
+	endm
+	
+startPWM macro
+	movlw	    0x0C
+	mask_bits   CCP1CON, 0x0F
+	movlw	    0x0C
+	mask_bits   CCP2CON, 0x0F	
+	endm
+disp16bit macro high, low
+	movff	low,NumL
+	movff	high,NumH
+	call	bin16_BCD
+	call	Disp_Number
+	endm
