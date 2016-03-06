@@ -1,10 +1,7 @@
     #include <p18f4620.inc>
     #include <MACROS.inc>
+    #include <Constants.inc>
         
-#define RS  LATD,2
-#define E   LATD,3
-#define LCD_DELAY_DURATION  0x20
-    
    udata 
 delay1	    res 1
 delay2	    res 1
@@ -14,7 +11,7 @@ lcdCursor   res 1
 keypress    res 1 
 
     code 
-    global LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
+    global LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress    
     
     
 READ_KEYPAD     
@@ -80,14 +77,14 @@ Loop1
 NIBBLE_LCD
     ;Recieve data in working reg.
     movwf lcd_buffer	;set aside inst.
-    mask_bits LATD,0xF0
+    mask_bits LCD_PORT,LCD_MASK
     bcf E
     delay LCD_DELAY_DURATION
     bsf E    
     delay LCD_DELAY_DURATION
     swapf lcd_buffer,1	    
     movf lcd_buffer, 0	    ;recover original data
-    mask_bits LATD,0xF0
+    mask_bits LCD_PORT,LCD_MASK
     bcf E
     delay LCD_DELAY_DURATION
     bsf E

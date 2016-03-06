@@ -1,13 +1,11 @@
     #include <p18f4620.inc>
     #include <MACROS.inc>
+    #include <Constants.inc>
+
     extern LeftL, LeftH ,RightL,RightH
     extern DELAY_ROUTINE
     
-#define STEP	LATD,1
-#define DutyDefault B'00111010'
-#define	LeftSpeed    CCPR1L
-#define	RightSpeed   CCPR2L   
-#define	StepDelay	0x01
+
 
    
     udata
@@ -18,13 +16,13 @@ direction   res	    1
     global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction
     
 CONFIG_PWM			;ccp1 : LEFT CCP2: RIGHT 
-	movlw	    B'01100011'	;configure PR2
+	movlw	    B'01111111'	;configure PWM Period 
 	movwf	    PR2
 	;configure CCP Module #1
 	movlw	    DutyDefault	;configure duty cycle
 	movwf	    LeftSpeed
 	movlw	    B'01001100'	;configure duty cycle and RD5 forward, RD7 rev
-	movwf	    CCP1CON		;disable PWM until i can remake the PCB 
+	movwf	    CCP1CON		
        ;configure CCP Module #2
 	movlw	    DutyDefault	;configure CCPR2L
 	movwf	    RightSpeed

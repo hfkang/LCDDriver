@@ -1,22 +1,12 @@
     #include <p18f4620.inc>
     #include <MACROS.inc>
+    #include <Constants.inc>
+
     extern bin16_BCD, direction
     extern LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
 
     
-#define FIR	PORTA,0
-#define BIR	PORTA,1
-#define TRIG	LATD,0
-#define ECHO	PORTB,4
-#define RS	LATD,2
-#define E	LATD,3
-#define	LComp	PORTC,0		;CHANGE LATER to proper port. 
-#define	RComp	PORTD,1		;temporary. currently complifts with ultrasound
-#define	WHITETHRESH	D'100'
-#define	BLACKTHRESH	0x50
-#define	BLACKVERIFY	D'100'
-	
-#define	DISTTHRESH	D'10'	;trigger for ultrasonic sensor 
+
     
     udata
 pingtime    res	    1
@@ -64,8 +54,8 @@ PoleLocH    res	    1
 	    
 	    
     code
-    global	ADC,PING,DIST,pingtime, pingH, NumH, NumL, TenK, Thou ,Hund, Tens, Ones,ENCODER1,ENCODER2, LeftL, LeftH, disp_encoders,RightL,RightH
-    global	IRState, B1L,B1H,B1S,B2L,B2H,B2S,B3L,B3H,B3S,B4L,B4H,B4S,B5L,B5H,B5S,B6L,B6H,B6S,B7L,B7H,B7S, Disp_Number,dispPING,BinNum
+    global	ADC,PING,DIST,pingtime, pingH, NumH, NumL, TenK, Thou ,Hund, Tens, Ones,ENCODER1,ENCODER2, LeftL, LeftH, disp_encoders,RightL,RightH,PoleL,PoleH
+    global	IRState, B1L,B1H,B1S,B2L,B2H,B2S,B3L,B3H,B3S,B4L,B4H,B4S,B5L,B5H,B5S,B6L,B6H,B6S,B7L,B7H,B7S, Disp_Number,dispPING,BinNum,PoleLocH,PoleLocL
 ;ADC is a blocking subroutine, in that it involves slightly longer delays 
 ADC	movlw	B'00000001'	;configure ADCON0 for AN0 input (RA0)
 	btfsc	direction, 0
@@ -80,40 +70,6 @@ WAIT	btfsc	ADCON0,1	;wait until the conversion is completed
 	;btfsc	direction,0
 	;decf	IRState
 	;return 
-	
-PROCESS	btfsc	IRState,5	;if 1x, go to black verify section
-	bra	BlkVer
-	btfsc	IRState,4	;if 01, go to the black threshold part 
-	bra	BlkThs
-white	movlw	0x01		
-	cpfslt	ADRESH		;upper bits of adc reading must be zero! DUH
-	bra	fin		
-	movlw	WHITETHRESH
-	cpfslt	ADRESL		;continue if ADRESL < White threshold 
-	bsf	IRState,4	;change state to waiting for black
-	bra	fin		;thats it for now 
-BlkThs	movlw	B'10'		;1001010000 = 	592	
-	cpfsgt  ADRESH 
-	movlw	BLACKTHRESH 
-	cpfsgt  ADRESL		;continue if we've ADRESL > Black threshold 
-	bsf	IRState, 5	;now we're in final stage!!
-	bra	fin
-BlkVer	movlw	D'2'
-	cpfslt  ADRESH
-	bra	defWht		;almost dark. definitely it was just white sticker
-	movlw	D'1'
-	cpfslt	ADRESH		;upper bits of adc reading must be zero! DUH
-	bra	fin
-	movlw	BLACKVERIFY	
-	cpfsgt	ADRESL		;still high, should check lower register 
-	bra	fin		;undetermined state. still waiting for more data
-	bra	defBlk		;IR reflectance is high again, it's a black bin
-				
-	
-defWht	incBinNumber		;keep track of how many bins we have 	
-	storeBin  tempBin, direction, 1	;it was a white sticker all along
-defBlk	incBinNumber		;keep track of how many bins we have 	
-	storeBin  tempBin, direction, 0	 ;front side, black for testing 
 fin    	return
 
 Disp_Number
@@ -159,14 +115,7 @@ dispPING
 	call	Disp_Number
 	return
 	
-PING	movlw	DISTTHRESH
-	cpfslt	PoleL		;if range reading > threshold, just ping again
-	bra	_ping
-	movff	RightL,PoleLocL		;range reading < threshold. pole is here. 
-	movff	RightH,PoleLocH		;copy location of the pole in encoder ticks
-	
-	
-_ping	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
+PING	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
 	delay	0x2
 	bcf	TRIG
 	return
@@ -183,6 +132,7 @@ echo_b	bcf	T0CON,7		;disable timer
 	movwf	PoleL
 	movf	TMR0H,W
 	movwf	PoleH
+		
 	bcf	INTCON,0	;reset interrupt vector
 	retfie	1			;return from interrupt
 	
