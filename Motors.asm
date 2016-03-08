@@ -16,7 +16,8 @@ direction   res	    1
     global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction
     
 CONFIG_PWM			;ccp1 : LEFT CCP2: RIGHT 
-	movlw	    B'01111111'	;configure PWM Period 
+	;movlw	    B'01111111'	;configure PWM Period 
+	movlw	    DutyDefault
 	movwf	    PR2
 	;configure CCP Module #1
 	movlw	    DutyDefault	;configure duty cycle

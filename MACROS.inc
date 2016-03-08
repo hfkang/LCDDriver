@@ -57,6 +57,19 @@ readTable macro TableLabel
     movwf TBLPTRL
     endm
     
+dispText macro	Table,line
+    local	_rdtbl
+    movlw	line
+    btfsc	WREG,6
+    bra		_rdtbl
+    lcdClear 
+_rdtbl
+    readTable	Table
+    lcdInst	line
+    call	DISP_TEXT
+    endm
+    
+    
 incBinNumber macro
 	bcf	IRState,5
 	bcf	IRState,4	;reset FSM state vector 
@@ -72,6 +85,25 @@ decBinNumber macro
 	movff	IRState,tempBin	;tempBin for use in the destructive method lateron
 	movff	IRState,BinNum
 	endm
+	
+dispBinInfo macro   state
+	local	    _iswhite,_isblack,_finih
+	dispText    Biin,first_line
+	movff	    CurrBin,NumL
+	call	    bin8_BCD
+	call	    Disp_Number
+	btfsc	    state,0		;skip if black
+	bra	    _iswhite
+	bra	    _isblack
+_iswhite
+	dispText    isWhite,second_line
+	bra	    _finih
+_isblack
+	dispText    isBlack,second_line
+_finih
+	endm 
+	
+	
  
 storeBinData macro LocH, LocL, BinStatusReg, Side, Color 
 	local	    _rear
@@ -81,19 +113,18 @@ storeBinData macro LocH, LocL, BinStatusReg, Side, Color
 	bra	    _rear	;if the Side bit is set then store color only
 	movff	    RightL, LocL	;this is for the front side bins
 	movff	    RightH, LocH
-	
 	movlw	    Color	    	;store color in wreg to be stored in reg
 	movwf	    BinStatusReg
 	bra	    _end
-	
 _rear	movlw	    Color
 	rlncf	    WREG,1
 	mask_bits   BinStatusReg, B'00000010'	;write in the next bit 
-_end	
+_end	;dispBinInfo BinStatusReg
 	endm 
 	
 storeBin macro BinNumber, Side, Color
 	local	    bin1,bin2,bin3,bin4,bin5,bin6,bin7,_end
+	
 	decf	    BinNumber
 	bz	    bin1
 	decf	    BinNumber
@@ -144,35 +175,84 @@ disp16bit macro high, low
 	call	Disp_Number
 	endm
 	
+
 ;This macro does a 16 bit comaprison operation, and branches depending on how the values turn out
-comp16 macro varH,varL,threshH,threshL,gotoHigh,gotoLow,gotoEq
-	movlw	    threshH
+comp16 macro varH,varL,gotoHigh,gotoLow,gotoEq
+	local	    _geeq,_eq,_geeqlow
+	movf	    threshH,W
 	cpfslt	    varH   
-	bra	    gotoHigh	    ;since varH > threshH, go to high method
-	movlw	    threshH
-	cpfsgt	    varH
-	bra	    gotoLow	    ;since varH < threshH, go to low method
-	movlw	    threshL
-	cpfslt	    varL
-	bra	    gotoHigh	    ;since varL > threshL and high same, gotoHigh
-	movlw	    threshL
-	cpfsgt	    varL   
-	bra	    gotoLow	    ;since varL < thresh, go to low
-	bra	    gotoEq	    ;by process of elimination they are equal
+	bra	    _geeq	    ;since varH >= threshH, go to high method
+	goto	    gotoLow	    ;definitely lower
+
+_geeq
+	cpfseq	    varH
+	goto	    gotoHigh	    ;definitely higher
+_eq
+	movf	    threshL,W
+	cpfslt	    varL	    ;high bits are equal, idk about low bits
+	bra	    _geeqlow	    ;high bits are equal, but lower bit is higher or equal
+	goto	    gotoLow	    ;high was equal, but lower is low
+_geeqlow
+	cpfseq	    varL
+	goto	    gotoHigh	    ;lower register is higher than threshold
+	goto	    gotoEq	    ;both registers are totally equal 
 	endm
 	
-movlf       macro   literal, register
-	    movlw   literal
-	    movwf   register
-	    endm
+disp16 macro high,low	
+    movff	low,NumL
+    movff	high,NumH
+    call	bin16_BCD
+    call	Disp_Number
+    endm
+    
+    
+add16 macro fileH,fileL,operand
+	movlw	    operand
+	addwf	    fileL,F
+	btfsc	    STATUS,C
+	incf	    fileH	
+	endm
+
+sub16	macro fileH,fileL,operand
+	movlw	    operand 
+	subwf	    fileL,F
+	btfss	    STATUS,C
+	decf	    fileH
+	endm	
+	
+movlf   macro   literal, register
+	movlw   literal
+	movwf   register
+	endm
+	
+encOffset macro	    offset
+	local	    _add,_sub,_fin
+	movff	    RightH,threshH
+	movff	    RightL,threshL
+	btfsc	    direction,0		;add if forward, subtract if backward
+	bra	    _sub		;subtract because its set, & not skipped
+_add	add16	    threshH,threshL,offset	;offset should be a literal (constant)
+_add1	call	    PID
+	comp16	    RightH,RightL,_fin,_add1,_add1
+	
+_sub	sub16	    threshH,threshL,offset
+_sub1	call	    PID
+	comp16	    RightH,RightL,_sub1,_fin,_sub1
+_fin	
+	endm
+	
+	
 	    
 rtc_disp    macro   rtc_data
-            rtc_convert rtc_data
-            movff       tens_digit, WREG
-	    lcdData
-            movff       ones_digit, WREG
-	    lcdData
-            endm
+	rtc_convert rtc_data
+	movff       tens_digit, WREG
+	lcdData
+	movff       ones_digit, WREG
+	lcdData
+	endm
+	    
+
+	
 	    
 
 ; ----------------------------------------------------------------------------

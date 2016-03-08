@@ -15,11 +15,12 @@ keypress    res 1
     
     
 READ_KEYPAD     
-	 btfss		PORTB,1   ;Wait until data is available from the keypad
+	 btfss		KEYPAD_DA  ;Wait until data is available from the keypad
          goto		READ_KEYPAD
          swapf		PORTB,W     ;Read PortB<7:4> into W<3:0>
+	 movf		KEYPAD_PORT,W
          andlw		0x0F
-	 btfsc		PORTB,1     ;Wait until key is released
+	 btfsc		KEYPAD_DA     ;Wait until key is released
          goto		$-2
 	 ;word_wrap	lcdCursor
 	 ;goto		test
@@ -28,8 +29,6 @@ READ_KEYPAD
    
 
 DISP_TEXT   	    
-	lcdHomeLine
-	lcdClear
 	movlw 0
 	movwf lcdCursor
 	tblrd*

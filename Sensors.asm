@@ -4,9 +4,6 @@
 
     extern bin16_BCD, direction
     extern LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
-
-    
-
     
     udata
 pingtime    res	    1
@@ -109,15 +106,16 @@ dispPING
 	movff	PoleL,NumL
 	movff	PoleH,NumH
 	call	bin16_BCD	;convert the previous values to BCD notation
-	lcdClear
-	readTable   Ultrasound
-	call	DISP_TEXT
+	dispText  Ultrasound,first_line
 	call	Disp_Number
 	return
 	
 PING	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
 	delay	0x2
 	bcf	TRIG
+	btfsc	ECHO
+	bra	$-2
+	
 	return
 	
 DIST	btfss	PORTB,4		;if RB4 is high, reset and start timer 3
