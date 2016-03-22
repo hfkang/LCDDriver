@@ -9,6 +9,7 @@ delay3	    res 1
 lcd_buffer  res 1
 lcdCursor   res 1
 keypress    res 1 
+keypad_dat  res	1
 
     code 
     global LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress    
@@ -17,13 +18,13 @@ keypress    res 1
 READ_KEYPAD     
 	 btfss		KEYPAD_DA  ;Wait until data is available from the keypad
          goto		READ_KEYPAD
-         swapf		PORTB,W     ;Read PortB<7:4> into W<3:0>
-	 movf		KEYPAD_PORT,W
-         andlw		0x0F
+	 movff		KEYPAD_PORT, keypad_dat
+	 rrncf		keypad_dat
+	 rrncf		keypad_dat
+	 movf		keypad_dat,W
+	 andlw		0x0F
 	 btfsc		KEYPAD_DA     ;Wait until key is released
          goto		$-2
-	 ;word_wrap	lcdCursor
-	 ;goto		test
 	 return 
 
    
@@ -65,7 +66,7 @@ Loop3
 Loop2
     movwf delay1
 Loop1
-    decfsz delay1,F
+      decfsz delay1,F
 	goto Loop1
     decfsz delay2,F
 	goto Loop2

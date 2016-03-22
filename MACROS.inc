@@ -224,25 +224,28 @@ movlf   macro   literal, register
 	movlw   literal
 	movwf   register
 	endm
+
 	
 encOffset macro	    offset
-	local	    _add,_sub,_fin
+	local	    _add,_sub,_fin,_add1,_sub1
+	
 	movff	    RightH,threshH
 	movff	    RightL,threshL
 	btfsc	    direction,0		;add if forward, subtract if backward
 	bra	    _sub		;subtract because its set, & not skipped
 _add	add16	    threshH,threshL,offset	;offset should be a literal (constant)
 _add1	call	    PID
+	lcdHomeLine
+	call	    disp_encoders
 	comp16	    RightH,RightL,_fin,_add1,_add1
-	
 _sub	sub16	    threshH,threshL,offset
 _sub1	call	    PID
+	lcdHomeLine
+	call	    disp_encoders
 	comp16	    RightH,RightL,_sub1,_fin,_sub1
 _fin	
 	endm
 	
-	
-	    
 rtc_disp    macro   rtc_data
 	rtc_convert rtc_data
 	movff       tens_digit, WREG
@@ -252,63 +255,54 @@ rtc_disp    macro   rtc_data
 	endm
 	    
 
+divby8	macro reg
+	rrncf	reg
+	rrncf	reg
+	rrncf	reg
+
+
+	bcf	reg,7
+	bcf	reg,6
+	bcf	reg,5
+	
+	endm
 	
 	    
 
-; ----------------------------------------------------------------------------
-; I2C macros 
-; ----------------------------------------------------------------------------
-; i2c_start- tells I2C to begin transaction
 i2c_start       macro
         bsf     SSPCON2, SEN
         call    CheckI2C
         endm
-; ----------------------------------------------------------------------------
-; i2c_stop- tells I2C that transaction has stopped
 i2c_stop        macro
         bsf     SSPCON2, PEN
         call    CheckI2C
         endm
-; ----------------------------------------------------------------------------
-; i2c_write- writes current value of WREG into I2C buffer
 i2c_write       macro
         movwf   SSPBUF
         call    CheckI2C
         endm
-; ----------------------------------------------------------------------------
-; rd_i2c_buf_ack- read I2C buffer, send acknowledge- keep reading
 rd_i2c_buf_ack  macro   rtc_reg
         bsf     SSPCON2, RCEN
         call    CheckI2C
         i2c_common_ack
         movff   SSPBUF, rtc_reg
         endm
-; ----------------------------------------------------------------------------
-; rd_i2c_buf_nack- read I2C buffer, send not acknowledge- done reading
 rd_i2c_buf_nack macro   rtc_reg
         bsf     SSPCON2, RCEN
         call    CheckI2C
         i2c_common_nack
         movff   SSPBUF, rtc_reg
         endm
-; ----------------------------------------------------------------------------
-; i2c_common_ack - send acknowledge to slave device
 i2c_common_ack  macro
         bcf     SSPCON2,ACKDT
         bsf     SSPCON2,ACKEN
         call    CheckI2C
         endm
-; ----------------------------------------------------------------------------
-; i2c_common_nack - send not acknowledge to slave device
 i2c_common_nack	macro
         bsf      SSPCON2,ACKDT
         bsf      SSPCON2,ACKEN
         call     CheckI2C
         endm
-; ----------------------------------------------------------------------------
-; RTC macros
-; ----------------------------------------------------------------------------
-; rtc_wr - writes data given to register at address in RTC
 rtc_wr   macro   address, rtc_data
         i2c_start
         movlw       0xD0            ; RTC address
@@ -319,9 +313,6 @@ rtc_wr   macro   address, rtc_data
         i2c_write
         i2c_stop
         endm
-; ----------------------------------------------------------------------------
-; rtc_convert- takes BCD coded data and outputs an ASCII ones and tens digit
-; these are stored in registers tens_digit and ones_digit
 rtc_convert macro   rtc_data
         swapf       rtc_data, W
         andlw       B'00001111'     ; masks all but MSBs of rtc_data
@@ -332,3 +323,10 @@ rtc_convert macro   rtc_data
         addlw       0x30            ; required to convert to ASCII
         movwf       ones_digit      ; store in ones_digit
         endm
+	
+reset_encoders macro
+	clrf	    RightH
+	clrf	    RightL
+	clrf	    LeftL
+	clrf	    LeftH
+	endm

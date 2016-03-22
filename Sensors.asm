@@ -88,11 +88,12 @@ Disp_Number
 	return
 	
 disp_encoders 
-	lcdClear
 	movff	LeftL,NumL
 	movff	LeftH,NumH
 	call	bin16_BCD
 	call	Disp_Number
+	movlw	0x20
+	lcdData
 	movff	RightL,NumL
 	movff	RightH,NumH
 	call	bin16_BCD
@@ -103,22 +104,36 @@ Ultrasound
     db "Ultrasound:",0
 	
 dispPING	
+	
 	movff	PoleL,NumL
 	movff	PoleH,NumH
 	call	bin16_BCD	;convert the previous values to BCD notation
-	dispText  Ultrasound,first_line
 	call	Disp_Number
 	return
 	
 PING	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
 	delay	0x2
 	bcf	TRIG
+	return
+	
+	clrf	TMR0H
+	clrf	TMR0L		;clear register and prescaler
+	bsf	T0CON,7		;enable timer
+	
+	delay	0x50
+	
 	btfsc	ECHO
-	bra	$-2
+	bra	$-2		;wait for echo to go back low
+	
+	bcf	T0CON,7		;disable timer
+	movf	TMR0L,W
+	movwf	PoleL
+	movf	TMR0H,W
+	movwf	PoleH
 	
 	return
 	
-DIST	btfss	PORTB,4		;if RB4 is high, reset and start timer 3
+DIST	btfss	ECHO	;if RB4 is high, reset and start timer 3
 	goto	echo_b
 echo_a	clrf	TMR0H
 	clrf	TMR0L		;clear register and prescaler
@@ -137,33 +152,33 @@ echo_b	bcf	T0CON,7		;disable timer
 
 	
 ENCODER1
-	btfsc	LComp		;check direction of encoder
+	btfss	RComp		;check direction of encoder
 	goto	for
 	goto	back
 	
-for	incf	LeftL
+for	incf	RightL
 	btfsc	STATUS,C
-	incf	LeftH
+	incf	RightH
 	goto	transf
-back	decf	LeftL
+back	decf	RightL
 	btfss	STATUS,C
-	decf	LeftH
-transf	bcf	INTCON3,1	;reset flag bit
+	decf	RightH
+transf	bcf	INTCON,1	;reset flag bit
 	retfie	1
 	
 ENCODER2
-	btfss	RComp		;check direction of encoder. directions reversed
+	btfss	LComp		;check direction of encoder. directions reversed
 	goto	for2
 	goto	back2
 	
-for2	incf	RightL
+for2	incf	LeftL
 	btfsc	STATUS,C
-	incf	RightH
+	incf	LeftH
 	goto	transf2
-back2	decf	RightL
+back2	decf	LeftL
 	btfss	STATUS,C
-	decf	RightH
-transf2	bcf	INTCON,1	;reset flag bit
+	decf	LeftH
+transf2	bcf	INTCON3,1	;reset flag bit
 	retfie	1
 	
 	end

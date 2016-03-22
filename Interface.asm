@@ -58,23 +58,24 @@ binstate	res 1
 	
 gapL		res 1		;used when we need to move x cm away from
 gapH		res 1		;our current position 
-
-steps	    	res 1
+steps		res 1
+		
+stepsH	    	res 1
+stepsL		res 1
+armState	res 1
 		
 MAIN CODE 
-isr2
+isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
-	btfsc	INTCON3,    1    ;encoder 1 int2
-	call	ENCODER1,   1
-	btfsc	INTCON,	    1	 ;encoder 2 on int0, RB0
-	call	ENCODER2,   1
+	btfsc	INTCON,	    1    ;encoder 1 int0, RB0
+	call	ENCODER1,   1	 ;encoder 1 is on right side
+	btfsc	INTCON3,    1	 ;encoder 2 on int2, RB2
+	call	ENCODER2,   1	 ;encoder 2 is on left side 
 	retfie
-
-isr	call	ENCODER2,   1
-	retfie
+	
 Start_Msg
-    db "Press any key tobegin...",0
+    db "Push 0 to begin",0
 Prog_Msg
     db "Operation in    progress..",0
 Data_Prompt
@@ -117,33 +118,46 @@ isBlack
     db "Black",0
 isWhite
     db "White",0
-    
+Movingintoposition
+    db "Moving into position",0
+int0
+    db "int0",0
+int1
+    db "int1",0
+int2
+    db "int2",0
+Ultrasound
+    db "Ultrasound:",0
 
 start
     movlw	B'01110010'	;Set internal oscillator frequency to 8MHz
     movwf	OSCCON		
     
     bcf		RCON,7		;disable interrupt priority
-    movlw	B'11011000'	
+    movlw	B'11011000'	;disable RB change interrupts 
     movwf	INTCON		;config interrupts for delta B, en High,low priority
-    movlw	B'11110101'	;low priority for portb changing, interupt on rising edge
+    
+    bsf		INTCON,3	;enable the port change interrupts for now. 
+    
+    movlw	B'11110111'	;low priority for portb changing, interupt on rising edge
     movwf	INTCON2		
     movlw	B'11010000'	;Enable edge interrupt for RB2
     movwf	INTCON3
     
-    movlw	b'00000011'	;Analog In on 0, 1
-    movwf	TRISA		;for PORTA
-    movlw	b'11010111'	;keypad and ultrasonic inputs on PORTB
-    movwf	TRISB		;for PORTB
-    movlw	b'11011000'
-    movwf   	TRISC		;set PORTC as output    , but c0 is input 
-    movlw	b'00000000'	
-    movwf	TRISD		;set PORTD as output
+    movlf	b'00111111', TRISA
+    movlf	b'00011111', TRISB
+    movlf	b'11011000', TRISC
+    movlf	b'00000000', TRISD
+    bcf		TRISE,0
+    bcf		TRISE,1
 
     clrf	LATA
     clrf	LATB
     clrf	LATC
     clrf	LATD
+    clrf	LATE
+    
+    bsf		STEP_ENABLE		;disable stepper 
     
     clrf	direction
     clrf	LeftL
@@ -154,132 +168,140 @@ start
     clrf	BinNum		;clear important registers. 
     clrf	PoleLocH
     clrf	PoleLocL
+    clrf	PoleH
+    clrf	PoleL
     clrf	TotBin
     clrf	CurrBin
-    clrf    B1L
-    clrf    B1H
-    clrf    B1S
-    clrf    B2L
-    clrf    B2H
-    clrf    B2S
-    clrf    B3L
-    clrf    B3H
-    clrf    B3S
-    clrf    B4L
-    clrf    B4H
-    clrf    B4S
-    clrf    B5L
-    clrf    B5H
-    clrf    B5S
-    clrf    B6L
-    clrf    B6H
-    clrf    B6S
-    clrf    B7L
-    clrf    B7H
-    clrf    B7S
-    
-    
-
+    clrf	B1L
+    clrf	B1H
+    clrf	B1S
+    clrf	B2L
+    clrf	B2H
+    clrf	B2S
+    clrf	B3L
+    clrf	B3H
+    clrf	B3S
+    clrf	B4L
+    clrf	B4H
+    clrf	B4S
+    clrf	B5L
+    clrf	B5H
+    clrf	B5S
+    clrf	B6L
+    clrf	B6H
+    clrf	B6S
+    clrf	B7L
+    clrf	B7H
+    clrf	B7S
+    clrf	armState
+     
     movlw	B'00001101'	;configure ADCON1, Analog in for RA0, RA1  
     movwf	ADCON1		
     movlw	B'10110111'	;configure ADCON2
     movwf	ADCON2
     call	CONFIG_PWM	
     stopPWM
- 
+    call	FORWARD
+    
     movlw	B'01000111'	;Configure Timer0 for distance measurement, 1 for CPP
     movwf	T0CON		;8bit prescaler from Fosc/4 in 16 bit mode 
     delay	0x50		;wait for LCD to initialie 
     call	LCD_INIT     
     call        ConfigureI2C            ; Configures I2C for RTC
     
-    dispText	Start_Msg,first_line
-    call	RTCDisplayTimeDate
-    call	READ_KEYPAD		;call in keypad. gets a value and returns
+    ;goto	ultratest
+    ;goto	testBuzzer
+    goto	testPWM
+    ;goto	_rev		;test reverse loop functionality 
+    ;goto	Dumb
+    ;goto	move4m
+    ;call	REVERSE
+    ;goto	irtesting
     
+    dispText	Start_Msg,first_line
+    lcdNewLine
+    call	RTCDisplayTimeDate	;display time and date on screen 
+    call	READ_KEYPAD		;call in keypad. gets a value and returns
+    call	PING
     dispText	Prog_Msg,first_line
     call        ReadFromRTC
-    movff       rtc_sec, start_time_sec
+    movff       rtc_sec, start_time_sec	;store begin time for elapsed trial time
     movff       rtc_min, start_time_min
-    
-    ;startPWM
-    ;call	testStepper
-    
-    goto	Dumb
-    
-    call	PING
+    startPWM
+    reset_encoders
     ;*************************************************************************
     ;
     ;		    BEGIN MAIN OPERATION LOOP (forward dir)
     ;
     ;*************************************************************************
 Main_loop    
-    btfsc	PORTB,1		    ;skip to next session on button press(debug)
-    goto    	_rev
-    
-    
-    call	PING		    ;check the ultrasonic now. 
-    movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got
+    movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got 
     cpfslt	PoleL		    ;can convert to 16 bit if necessary 
     goto	_pid
-    
-    dispText	Obstacle,first_line
-    delay	SENSOR_DELAY	;wait a bit to see if the bin is there
-    ;encOffset 	IRBinScanOffset	;this makes the robot keep moving until it reaches this many encoder ticks. 
-
+    bsf		BUZZER		
+    encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the bin
+    lcdClear
 _myadc    
-    call	ADC		;check ADC value 
+    call	ADC		    ;check ADC value 
     dispText	IRMsg,first_line
     disp16	ADRESH,ADRESL
-    delay	0xFF    
-    
-    call	READ_KEYPAD
-    
-    clrf	threshH
-    movlf	WHITETHRESH,threshL
+    movlf	BINH,threshH
+    movlf	BINL,threshL
     comp16	ADRESH,ADRESL,_pol,_bin,_bin	;pol if no IR, bin if IR
-    
 _pol				;we know a pole is here
-    dispText	PoleDetected,first_line
+    dispText	PoleDetected,second_line
     movff	RightL,PoleLocL
     movff	RightH,PoleLocH
-    call	READ_KEYPAD
+    call	SuperDelay
     goto	_pid
-    
-_bin				;we know a bin is here! now we wait
-    dispText	BinDetected,first_line
+_bin				;we know a bin is here! now go to where sticker is 
+    dispText	BinDetected,second_line
     incf	CurrBin
     incf	TotBin
-    call	SuperDelay	;wait for the bot to get to the sticker
-    ;encOffset 	IRStickerScanOffset	
+    encOffset 	IRStickerScanOffset	
     call	ADC		;check adc again
-
-    movlf	0x00,threshH
-    movlf	WHITETHRESH,threshL
+    movlf	WHITEH,threshH
+    movlf	WHITEL,threshL
     comp16	ADRESH,ADRESL,Bl,Wh,Wh
-    
 Bl  
     movf	CurrBin,W
     storeBin	WREG, 0, 0	;store frontside, black
+    lcdClear
+    dispText	isBlack,second_line
+    encOffset	BinHalfway
     goto	_pid
 Wh  
     movf	CurrBin,W
     storeBin	WREG, 0, 1	;store frontside, white	
+    lcdClear
+    dispText	isWhite,second_line
+    encOffset	BinHalfway
     goto	_pid
     
 
 _pid
-    call	PID		;adjust motor output speeds
+    call	PING
+    bcf		BUZZER
+    startPWM
+    ;call	PID		;adjust motor output speeds
     
     movlw	7
     cpfslt	CurrBin		
     goto	_rev		;go to reverse process if we've reached 7 bins
     
-    movlw	RightH		;use upper part of encoder to measure 4m approximately 
-    cpfslt	fourMeters
-    goto	_rev
     
-    goto    	Main_loop	;repeat
+    lcdHomeLine
+    call	disp_encoders
+    lcdNewLine
+    call	dispPING
+    
+    ;movlf	0x06,threshH
+    ;movlf	0x1D,threshL
+    movlf	0x03,threshH
+    movlf	0x0E,threshL
+    comp16	RightH,RightL,_rev,Main_loop,Main_loop
+    ;comp16	RightH,RightL,Finish,Main_loop,Main_loop
+    
     ;**************************************************************************
     ;
     ;				END MAIN OPERATION LOOP
@@ -287,53 +309,81 @@ _pid
     ;**************************************************************************
 
 _rev
-    call	REVERSE			;enter reverrse mode 
+    incf		CurrBin	    ;account for decrement offset in code 
     stopPWM
+    bsf			STEPDIR	
+    bcf			STEP_ENABLE
+    movlf		armStepH,stepsH
+    movlf		armStepL,stepsL
+    stopPWM
+    dispText		extendarmmsg,first_line
+extend
+    call		STEPPER
+    delay		STEPPER_SPEED 
+    sub16		stepsH,stepsL,1
+    clrf		threshH
+    movlf		0x05,threshH
+    comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
+stahp_extend
+    clrf		stepsH
+    clrf		stepsL
+    bsf			STEP_ENABLE
+    
+    call	PING		    ;check the ultrasonic now. 
+    call	REVERSE			;enter reverrse mode 
     dispText	ReverseMsg,first_line
-    call	READ_KEYPAD
+    ;call	READ_KEYPAD
     startPWM
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;			    TESTING VARIABLES ASSIGNED HERE
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+       
+     
     ;**************************************************************************
     ;
     ;				   BEIGIN REVERSE LOOP
     ;
     ;**************************************************************************
-Back_loop
-    btfsc	PORTB,1
-    bra		Disp_Data
-    
-
-    
-    movlw	DISTTHRESH
-    cpfslt	PoleL		
-    bra		_pid2
-    delay	SENSOR_DELAY	;wait a bit to see if the bin is there
-    call	ADC		;check ADC value 
-    
-    movlf	0x00,threshH
-    movlf	WHITETHRESH,threshL
-    comp16	ADRESH,ADRESL,_pid2,_bin2,_bin2	;pid if no IR, bin if IR
-    
-
+Back_loop   
+    movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got
+    cpfslt	PoleL		    ;can convert to 16 bit if necessary 
+    goto	_pid2
+    bsf		BUZZER    
+    encOffset 	IRBinScanOffset	;this makes the robot keep moving until it reaches this many encoder ticks. 
+    lcdClear
+    call	ADC		;check ADC value     
+    movlf	BINH,threshH
+    movlf	BINL,threshL
+    comp16	ADRESH,ADRESL,_pid2,_bin2,_bin2	;pid (check pole) if no IR, bin if IR 
     
 _bin2				;we know a bin is here! now we wait
+    dispText	BinDetected,second_line
     decf	CurrBin
-    call	SuperDelay	;wait for the bot to get to the sticker
+    encOffset 	IRStickerScanOffset	
     call	ADC		;check adc again
-    
-    movlf	0x00,threshH
-    movlf	BLACKTHRESH,threshL
+    movlf	WHITEH,threshH
+    movlf	WHITEL,threshL
     comp16	ADRESH,ADRESL,Bl2,Wh2,Wh2
 
-    
-Bl2  movf	CurrBin,W
+Bl2 movf	CurrBin,W
     storeBin	WREG, 1, 0	;store frontside, black
+    dispText	isBlack,second_line
+    encOffset	BinHalfway
     bra		_pid2
+    
 Wh2  movf	CurrBin,W
     storeBin	WREG, 1, 1	;store frontside, white	
+    dispText	isWhite,second_line
+    encOffset	BinHalfway
     bra		_pid2
+    
 
 _pid2
-    call	PID		;adjust motor output speeds    
+    call	PING
+    bcf		BUZZER
+    ;call	PID		;adjust motor output speeds  
     movff	PoleLocH,threshH
     movff	PoleLocL,threshL
     add16	threshH,threshL,poleOffset	;trigger to dodge pole
@@ -351,18 +401,43 @@ nearpole
     comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
 
 retractarm 
+    btfss	retracted
+    call	loadsteps
+    bsf		retracted
+    clrf	threshH
+    movlf	0x05,threshL
+    comp16	stepsH,stepsL,_ra,_pid2,_pid2			;only go through with stepper actuation if necessary 
+_ra    
+    bcf		STEP_ENABLE
     bcf		STEPDIR
     call	STEPPER
+    sub16	stepsH,stepsL,1
+    delay	POLE_SPEED
     bra		_pid2
     
 extendarm   
+    btfss	extended
+    call	loadsteps
+    bsf		extended
+    clrf	threshH
+    movlf	0x05,threshL
+    comp16	stepsH,stepsL,_ea,_pid2,_pid2
+_ea    
+    bcf		STEP_ENABLE
     bsf		STEPDIR
     call	STEPPER
+    sub16	stepsH,stepsL,1
+    delay	POLE_SPEED
     bra		_pid2
     
 nopole    
+    bsf		STEP_ENABLE
+    lcdHomeLine
+    call	disp_encoders
+    lcdNewLine
+    call	dispPING
     movlf	0x00,threshH
-    movlf	0x00,threshL
+    movlf	0x05,threshL
     comp16	RightH,RightL,Back_loop,Finish,Finish
     
         
@@ -397,6 +472,7 @@ Disp_Data				;show results
     dispText	Data_Prompt,first_line
     call	READ_KEYPAD		;gets requested container from user
     movwf	keypress		;store value in register
+    
 
     lcdClear
     incf	keypress
@@ -523,6 +599,95 @@ convertEncoder		    ;perform a division by 4 on a 16 bit number
 	call	    bin16_BCD
 	call	    Disp_Number
 	return
+	;*********************************************************************
+	;
+	;		    loadsteps - sets stepper variables for arm movement
+	;
+	;********************************************************************
+loadsteps
+	movlf		armStepH,stepsH
+	movlf		armStepL,stepsL
+	return 
+	
+
+move4m
+	;*********************************************************************
+	;
+	;		    move4m - move 4 m, showing encoders at all times
+	;
+	;*********************************************************************
+	lcdClear
+	call	FORWARD
+	startPWM
+loop4m	lcdHomeLine
+	movff	    LeftL,NumL
+        movff	    LeftH,NumH
+        call	    convertEncoder
+	movlw	    0x20
+	lcdData
+	movff	    RightL,NumL
+        movff	    RightH,NumH
+        call	    convertEncoder
+	
+	lcdNewLine
+	call	PING		    ;check the ultrasonic now. 
+	call	dispPING    
+	bcf	BUZZER
+	movlw	0xA
+	cpfslt	PoleL
+	bra	loop4m
+u2	call	PING
+	lcdNewLine
+	call	dispPING
+	bsf	BUZZER
+	movlw	0xA
+	cpfsgt	PoleL
+	bra	u2
+	
+	movlf	0x01,threshH
+	movlf	0x86,threshL
+	comp16 RightH,RightL,gorev,loop4m,gorev
+		
+gorev	
+	dispText    ReverseMsg,second_line
+	call	    REVERSE 
+	lcdClear
+loopback4m
+	lcdHomeLine
+	movff      LeftL,NumL
+        movff      LeftH,NumH
+        call       convertEncoder
+	movlw	   0x20
+	lcdData
+	movff	    RightL,NumL
+        movff	    RightH,NumH
+        call	    convertEncoder
+
+	lcdNewLine
+	call	PING		    ;check the ultrasonic now. 
+	call	dispPING    
+	bcf	BUZZER
+	movlw	0xA
+	cpfslt	PoleL
+	bra	loop4m
+u3	call	PING
+	lcdNewLine
+	call	dispPING
+	bsf	BUZZER
+	movlw	0xA
+	cpfsgt	PoleL
+	bra	u3
+	
+	movlf	0x00,threshH
+	movlf	0x05,threshL
+	comp16	RightH,RightL,loopback4m,stahp_pls,stahp_pls
+
+stahp_pls
+	stopPWM
+	goto	Disp_Data
+	
+	
+	
 
     ;*************************************************************************
     ;
@@ -530,11 +695,11 @@ convertEncoder		    ;perform a division by 4 on a 16 bit number
     ;	
     ;*************************************************************************
 Dumb
+    lcdHomeLine
     call	disp_encoders
-    delay 0xDF
     btfsc	KEYPAD_DA
     bra		enc
-    bra	    Dumb
+    bra		Dumb
     
     
 enc    
@@ -548,24 +713,46 @@ enc
 quit
     movlf		0x20,steps
     stopPWM
-fivesteps
     dispText		extendarmmsg,first_line
+    
+fivesteps
     call		STEPPER
     delay		STEPPER_SPEED 
-    decfsz		steps
+    btfss		KEYPAD_DA
     bra			fivesteps
+    
 irtesting    
-    call	ADC		;check ADC value 
     dispText	IRMsg,first_line
+    call	REVERSE 
+irtestloop
+    call	ADC		;check ADC value 
+    lcdNewLine
     disp16	ADRESH,ADRESL
     delay	0xFF
     btfsc	KEYPAD_DA
     bra		ultratest
-    bra		irtesting
+    bra		irtestloop
+    
 ultratest
+    lcdClear
+    dispText	Ultrasound,second_line
+    
+ultraloop
+    lcdHomeLine
     call	PING		    ;check the ultrasonic now. 
     call	dispPING    
-    delay	0xFF
+    bcf		BUZZER
+    movlw	0xA
+    cpfslt	PoleL
+    bra		ultraloop
+u1  call	PING
+    call	dispPING
+    bsf		BUZZER
+    movlw	0xA
+    cpfsgt	PoleL
+    bra		u1    
+    bra		ultraloop
+    
     btfsc	KEYPAD_DA
     bra		Dumb
     bra		ultratest
@@ -598,35 +785,68 @@ Off
     
 testPWM
     stopPWM
-    dispText	FullPower,first_line
-    bsf		LATD,7
-    call	READ_KEYPAD
+    dispText	FullPower,second_line
+    movlf	DutyDefault,RightSpeed
+    movlf	DutyDefault,LeftSpeed
+    bsf		LATC,1
+    bsf		LATC,2
+g1  lcdHomeLine
+    call	disp_encoders
+    btfss	KEYPAD_DA
+    bra		g1
 
-    stopPWM
-    dispText	PWM1,first_line
+    bcf		LATC,1
+    bcf		LATC,2
+    
+    startPWM
+    dispText	PWM1,second_line
     movlf	Duty75,RightSpeed
     movlf	Duty75,LeftSpeed
-    startPWM
-    call	READ_KEYPAD    
+g2  lcdHomeLine
+    call	disp_encoders
+    btfss	KEYPAD_DA
+    bra		g2    
     
-    stopPWM
-    dispText	PWM2,first_line
+    dispText	PWM2,second_line
     movlf	Duty50,RightSpeed
     movlf	Duty50,LeftSpeed
-    startPWM
-    call	READ_KEYPAD   
     
-    stopPWM
-    dispText	PWM3,first_line
+g3  lcdHomeLine
+    call	disp_encoders
+    btfss	KEYPAD_DA
+    bra		g3    
+    
+    dispText	PWM3,second_line
     movlf	Duty25,RightSpeed
     movlf	Duty25,LeftSpeed
-    startPWM
-    call	READ_KEYPAD
     
+g4  lcdHomeLine
+    call	disp_encoders
+    btfss	KEYPAD_DA
+    bra		g4    
+    
+    dispText	Off,second_line
     stopPWM
-    dispText	Off,first_line
-    call	READ_KEYPAD
+    movlf	0x00,RightSpeed
+    movlf	0x00,LeftSpeed
+g5  lcdHomeLine
+    call	disp_encoders
+    btfss	KEYPAD_DA
+    bra		g5
+    startPWM
+    
+    btfsc	direction,0
+    bra		toforward
+    
+    btfss	direction,0
+    bra		tobackward
+toforward
+    call	FORWARD
     bra		testPWM
+tobackward
+    call	REVERSE
+    bra		testPWM
+    
     return
     
     ;**********************************************************************
@@ -658,8 +878,8 @@ li  call	STEPPER
     
     
 T0Overflow
-	comf	LATC
-    	bcf	INTCON,TMR0IF
+    comf	LATC
+    bcf		INTCON,TMR0IF
     retfie	
     
 SuperDelay
@@ -673,6 +893,15 @@ SuperDelay
     delay 0xFF
     delay 0xFF    
     return
+    
+testBuzzer
+    bsf	    BUZZER
+    call    SuperDelay
+    bcf	    BUZZER
+    call    SuperDelay
+    bra	    testBuzzer
+    
+
     
 ; ----------------------------------------------------------------------------
 ; I2C Subroutines
@@ -710,10 +939,10 @@ ConfigureI2C
 ; ----------------------------------------------------------------------------
 InitializeRTC
         rtc_wr      seconds, d'0'       ; seconds
-        rtc_wr      minutes, d'7'       ; minutes
-        rtc_wr      hours, d'13'         ; hours
+        rtc_wr      minutes, 0x40       ; minutes
+        rtc_wr      hours, 0x21         ; hours
         rtc_wr      day, d'1'           ; days
-        rtc_wr      date, 0x07		; date
+        rtc_wr      date, 0x19		; date
         rtc_wr      month, d'3'         ; month
         rtc_wr      year, 0x16		; year
         return
@@ -762,6 +991,8 @@ RTCDisplayTimeDate
 	lcdData
 	rtc_disp    rtc_yr
         ; display time in "hh:mm: format
+	movlw	    0x20
+	lcdData
         rtc_disp    rtc_hr
         movlw       0x3A                ; ":"
 	lcdData
