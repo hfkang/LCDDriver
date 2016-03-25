@@ -63,6 +63,7 @@ steps		res 1
 stepsH	    	res 1
 stepsL		res 1
 armState	res 1
+obstacleL	res 1
 		
 MAIN CODE 
 isr
@@ -194,6 +195,7 @@ start
     clrf	B7H
     clrf	B7S
     clrf	armState
+    clrf	obstacleL
      
     movlw	B'00001101'	;configure ADCON1, Analog in for RA0, RA1  
     movwf	ADCON1		
@@ -785,10 +787,13 @@ Off
     
 testPWM
     stopPWM
+    bcf		LATC,1
+    bcf		LATC,2
     dispText	FullPower,second_line
     movlf	DutyDefault,RightSpeed
-    movlf	DutyDefault,LeftSpeed
     bsf		LATC,1
+    call	READ_KEYPAD
+    movlf	DutyDefault,LeftSpeed
     bsf		LATC,2
 g1  lcdHomeLine
     call	disp_encoders
@@ -801,6 +806,7 @@ g1  lcdHomeLine
     startPWM
     dispText	PWM1,second_line
     movlf	Duty75,RightSpeed
+    call	READ_KEYPAD
     movlf	Duty75,LeftSpeed
 g2  lcdHomeLine
     call	disp_encoders
@@ -809,6 +815,7 @@ g2  lcdHomeLine
     
     dispText	PWM2,second_line
     movlf	Duty50,RightSpeed
+    call	READ_KEYPAD
     movlf	Duty50,LeftSpeed
     
 g3  lcdHomeLine
@@ -818,6 +825,7 @@ g3  lcdHomeLine
     
     dispText	PWM3,second_line
     movlf	Duty25,RightSpeed
+    call	READ_KEYPAD
     movlf	Duty25,LeftSpeed
     
 g4  lcdHomeLine
@@ -828,12 +836,13 @@ g4  lcdHomeLine
     dispText	Off,second_line
     stopPWM
     movlf	0x00,RightSpeed
+    call	READ_KEYPAD
     movlf	0x00,LeftSpeed
 g5  lcdHomeLine
     call	disp_encoders
     btfss	KEYPAD_DA
     bra		g5
-    startPWM
+    
     
     btfsc	direction,0
     bra		toforward
