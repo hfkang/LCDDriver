@@ -253,21 +253,16 @@ rtc_disp    macro   rtc_data
 	movff       ones_digit, WREG
 	lcdData
 	endm
-	    
-
+	 
 divby8	macro reg
-	rrncf	reg
-	rrncf	reg
-	rrncf	reg
-
-
-	bcf	reg,7
-	bcf	reg,6
-	bcf	reg,5
+	rlncf	reg
+	rlncf	reg
 	
+	;rrncf	reg
+	;bcf	reg,7
+	;bcf	reg,6
+	nop
 	endm
-	
-	    
 
 i2c_start       macro
         bsf     SSPCON2, SEN

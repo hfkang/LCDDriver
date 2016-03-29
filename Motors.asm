@@ -2,8 +2,10 @@
     #include <MACROS.inc>
     #include <Constants.inc>
 
-    extern LeftL, LeftH ,RightL,RightH
-    extern DELAY_ROUTINE
+    extern LeftL, LeftH ,RightL,RightH,threshH,threshL
+    extern DELAY_ROUTINE,ErrorState
+    
+    
     
 
 
@@ -36,18 +38,38 @@ CONFIG_PWM
 PID
 	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
 	movlf	    DutyDefault,RightSpeed
-	return 
+	;movf	    LeftH,W			;copy Left to Wreg
+	;cpfseq	    RightH
+	;goto	    coarse
+	movlf	    0xFF,threshH
+	movlf	    0x00,threshL
+	comp16	    RightH,RightL,negpid,fine,negpid
+	movlf	    0xFF,threshH
+	movlf	    0x00,threshL
+	comp16	    LeftH,LeftL,negpid,fine,negpid
 	
-	movf	    LeftH,W		;copy Left to Wreg
-	cpfseq	    RightH
-	bra	    coarse
 	bra	    fine
+	
+negpid
+	clrf	    offset
+	movlw	    0xFF
+	cpfslt	    RightH 
+	call	    rightneg
+	
+	cpfslt	    LeftH
+	call	    leftneg
+	
+	movff	    LeftH,threshH
+	movff	    LeftL,threshL
+	comp16	    RightH,RightL,left,right,endpid
+	
+	;branching to left and right goes here
 	
 coarse	
 	movlf	    0x70,offset
 	movf	    LeftH,W
 	cpfslt	    RightH
-	bra	    right		;left > right, turn left
+	bra	    right			;left > right, turn left
 	comf	    offset
 	incf	    offset
 	bra	    left
@@ -55,26 +77,27 @@ coarse
 	
 fine	movf	    LeftL,W
 	subwf	    RightL,W
-	movwf	    offset		;store in offset variable 
+	movwf	    offset			;store in offset variable 
+	
 	
 	movf	    LeftL,W
 	cpfslt	    RightL
-	bra	    right		;left > right, turn left
+	bra	    right			;left > right, turn left
 	bra	    left
 	
 right	divby8	    offset
 	btfsc	    direction,0
-	bra	    rback		;when direction 1 = backward, don't skip, go to backward mathod. 
+	bra	    rback			;when direction 1 = backward, don't skip, go to backward mathod. 
 	movf	    offset,W
 	addwf	    LeftSpeed
 	movf	    offset,W
 	subwf	    RightSpeed
-	return
+	goto	    endpid
 rback	movf	    offset,W
 	addwf	    RightSpeed
 	movf	    offset,W
 	subwf	    LeftSpeed
-	return
+	goto	    endpid
 	
 left	comf	    offset
 	incf	    offset
@@ -85,12 +108,48 @@ left	comf	    offset
 	subwf	    LeftSpeed
 	movf	    offset,W
 	addwf	    RightSpeed
-	return 
+	goto	    endpid 
 lback	movf	    offset,W
 	subwf	    RightSpeed
 	movf	    offset,W
 	addwf	    LeftSpeed
+	goto	    endpid 
+	
+endpid 
+	movlw	    Duty50
+	cpfsgt	    RightSpeed
+	clrf	    RightSpeed
+	movlw	    Duty50
+	cpfsgt	    LeftSpeed
+	clrf	    LeftSpeed
+	
+	movlw	    D'200'
+	cpfslt	    RightSpeed
+	clrf	    RightSpeed
+	movlw	    D'200'
+	cpfslt	    LeftSpeed
+	clrf	    LeftSpeed
+	
+	return
+	movlw	    D'90'
+	cpfslt	    RightSpeed
+	goto	    ErrorState
+	movlw	    D'90'
+	cpfslt	    LeftSpeed
+	goto	    ErrorState
+	return	
+
+
+rightneg
+	movff	    RightL,offset	;already neg
 	return 
+
+leftneg
+	movlw	    0xFF
+	subwf	    LeftL,W
+	addwf	    offset
+	return 
+	
     
 REVERSE
 	stopPWM	
@@ -99,7 +158,7 @@ REVERSE
 	delay	    0xFF
 	delay	    0xFF
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
-	;bsf	    CCP1CON,7	;change to revserse on full bridge out (RD5)
+	;bsf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
 	bsf	    direction,0		;set direction bit in direction register 
 	bsf	    LeftDirection
@@ -114,7 +173,7 @@ FORWARD
 	delay	    0xFF
 	delay	    0xFF
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
-	;bcf	    CCP1CON,7	;change to revserse on full bridge out (RD5)
+	;bcf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
 	bcf	    direction,0		;set direction bit in direction register 
 	bcf	    LeftDirection

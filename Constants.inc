@@ -18,8 +18,8 @@
 
 #define	SENSOR_DELAY	    0XFF	;delay for reading in the sensor after a ping event 
 #define	STICKER_DELAY	    0xFF
-#define	IRBinScanOffset	    D'20'    	;4cm in encoder ticks 
-#define	IRStickerScanOffset D'30'	;25cm to get to sticker 
+#define	IRBinScanOffset	    D'70'    	;4cm in encoder ticks 
+#define IRStickerScanOffset 0x00
 #define BinHalfway	    D'50'	;get away from bin!
 
 #define FIR	PORTA,0
@@ -28,8 +28,8 @@
 #define ECHO	PORTB,4		
 #define	RComp	PORTC,6		;CHANGE LATER to proper port. 
 #define	LComp	PORTC,7		;temporary. currently complifts with ultrasound
-#define	WHITEH	0x01
-#define WHITEL	0x54
+#define	WHITEH	0x02
+#define WHITEL	0x58
 #define	BINH	0x02
 #define BINL	0xB3
 
@@ -43,12 +43,13 @@
 
 #define DutyDefault	0x40
 #define	DutyMax		0x40
+#define	Duty90		0x3A
 #define	Duty75		0x30
 #define	Duty50		0x20
 #define	Duty25		0x10
 
-#define	LeftSpeed	CCPR2L
-#define	RightSpeed	CCPR1L   
+#define	LeftSpeed	CCPR1L
+#define	RightSpeed	CCPR2L   
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
 #define	StepDelay	0x01

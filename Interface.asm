@@ -66,6 +66,7 @@ armState	res 1
 obstacleL	res 1
 		
 MAIN CODE 
+    global	    ErrorState,threshL,threshH
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
@@ -73,6 +74,8 @@ isr
 	call	ENCODER1,   1	 ;encoder 1 is on right side
 	btfsc	INTCON3,    1	 ;encoder 2 on int2, RB2
 	call	ENCODER2,   1	 ;encoder 2 is on left side 
+	btfsc	PIR1,	    TMR1IF				
+	call	PidInterrupt
 	retfie
 	
 Start_Msg
@@ -201,9 +204,7 @@ start
     movwf	ADCON1		
     movlw	B'10110111'	;configure ADCON2
     movwf	ADCON2
-    call	CONFIG_PWM	
-    stopPWM
-    call	FORWARD
+
     
     movlw	B'01000111'	;Configure Timer0 for distance measurement, 1 for CPP
     movwf	T0CON		;8bit prescaler from Fosc/4 in 16 bit mode 
@@ -211,14 +212,24 @@ start
     call	LCD_INIT     
     call        ConfigureI2C            ; Configures I2C for RTC
     
+    bcf		LeftDirection
+    bcf		RightDirection
+    call	CONFIG_PWM	
+    stopPWM
+    ;call	PidInitalize		;initialize PID variables 
+    
+    goto	testAN937
+
+    
     ;goto	ultratest
     ;goto	testBuzzer
-    goto	testPWM
+    ;goto	testPWM
     ;goto	_rev		;test reverse loop functionality 
     ;goto	Dumb
     ;goto	move4m
     ;call	REVERSE
     ;goto	irtesting
+    goto	testPID
     
     dispText	Start_Msg,first_line
     lcdNewLine
@@ -239,29 +250,31 @@ start
 Main_loop    
     movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got 
     cpfslt	PoleL		    ;can convert to 16 bit if necessary 
-    goto	_pid
+    goto	_pid		
     bsf		BUZZER		
-    encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the bin
-    lcdClear
-_myadc    
+    encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the sticker
+    call	PING
+    lcdClear			
+_myadc				
     call	ADC		    ;check ADC value 
-    dispText	IRMsg,first_line
+    dispText	IRMsg,first_line    
     disp16	ADRESH,ADRESL
-    movlf	BINH,threshH
-    movlf	BINL,threshL
-    comp16	ADRESH,ADRESL,_pol,_bin,_bin	;pol if no IR, bin if IR
+    
+    movlw	DISTTHRESH
+    cpfslt	PoleL
+    
+    goto	_pol
+    goto	_bin
 _pol				;we know a pole is here
     dispText	PoleDetected,second_line
-    movff	RightL,PoleLocL
-    movff	RightH,PoleLocH
-    call	SuperDelay
-    goto	_pid
+    movff	RightL,PoleLocL	
+    movff	RightH,PoleLocH	
+    call	SuperDelay  
+    goto	_pid	    
 _bin				;we know a bin is here! now go to where sticker is 
     dispText	BinDetected,second_line
     incf	CurrBin
     incf	TotBin
-    encOffset 	IRStickerScanOffset	
-    call	ADC		;check adc again
     movlf	WHITEH,threshH
     movlf	WHITEL,threshL
     comp16	ADRESH,ADRESL,Bl,Wh,Wh
@@ -353,12 +366,8 @@ Back_loop
     cpfslt	PoleL		    ;can convert to 16 bit if necessary 
     goto	_pid2
     bsf		BUZZER    
-    encOffset 	IRBinScanOffset	;this makes the robot keep moving until it reaches this many encoder ticks. 
+    encOffset 	IRBinScanOffset	;this makes the robot keep moving until it reaches this many encoder ticks. The only thing that can trip this should be the bins. Never pole
     lcdClear
-    call	ADC		;check ADC value     
-    movlf	BINH,threshH
-    movlf	BINL,threshL
-    comp16	ADRESH,ADRESL,_pid2,_bin2,_bin2	;pid (check pole) if no IR, bin if IR 
     
 _bin2				;we know a bin is here! now we wait
     dispText	BinDetected,second_line
@@ -611,7 +620,28 @@ loadsteps
 	movlf		armStepL,stepsL
 	return 
 	
-
+ErrorMsg
+	db "Alignment error",0
+ErrorState
+	stopPWM
+	bcf	    LATC,1
+	bcf	    LATC,2
+	dispText    ErrorMsg,first_line
+	lcdNewLine
+	call	    disp_encoders
+	bsf	    BUZZER
+	delay	    0xFF
+	bcf	    BUZZER
+	delay	    0x10
+	bsf	    BUZZER
+	delay	    0xFF
+	bcf	    BUZZER
+	delay	    0x10
+	bsf	    BUZZER
+	delay	    0xFF
+	bcf	    BUZZER
+	
+	goto	    Stop
 move4m
 	;*********************************************************************
 	;
@@ -725,12 +755,16 @@ fivesteps
     
 irtesting    
     dispText	IRMsg,first_line
-    call	REVERSE 
 irtestloop
+    call	FORWARD
     call	ADC		;check ADC value 
     lcdNewLine
     disp16	ADRESH,ADRESL
-    delay	0xFF
+    movlw	0x20
+    lcdData 
+    call	REVERSE
+    call	ADC
+    disp16	ADRESH,ADRESL
     btfsc	KEYPAD_DA
     bra		ultratest
     bra		irtestloop
@@ -792,7 +826,6 @@ testPWM
     dispText	FullPower,second_line
     movlf	DutyDefault,RightSpeed
     bsf		LATC,1
-    call	READ_KEYPAD
     movlf	DutyDefault,LeftSpeed
     bsf		LATC,2
 g1  lcdHomeLine
@@ -806,12 +839,13 @@ g1  lcdHomeLine
     startPWM
     dispText	PWM1,second_line
     movlf	Duty75,RightSpeed
-    call	READ_KEYPAD
     movlf	Duty75,LeftSpeed
 g2  lcdHomeLine
     call	disp_encoders
     btfss	KEYPAD_DA
     bra		g2    
+    
+    goto	nopwm 
     
     dispText	PWM2,second_line
     movlf	Duty50,RightSpeed
@@ -832,6 +866,8 @@ g4  lcdHomeLine
     call	disp_encoders
     btfss	KEYPAD_DA
     bra		g4    
+    
+nopwm
     
     dispText	Off,second_line
     stopPWM
@@ -857,6 +893,56 @@ tobackward
     bra		testPWM
     
     return
+    
+    ;**********************************************************************
+    ;
+    ;				AN937 Testing ground
+    ;
+    ;**********************************************************************
+testAN937    
+    
+    clrf	AARGB2
+    clrf	BARGB2
+    clrf	AARGB1
+    clrf	BARGB1
+    clrf	AARGB0
+    clrf	BARGB0
+    
+    movlf	0x01,AARGB1
+    movlf	0x01,BARGB0
+    
+    call	_24_bit_sub
+    
+endtest	    bra	    endtest
+    
+    ;**********************************************************************
+    ;
+    ;				P Control Algorithm
+    ;
+    ;**********************************************************************    
+testPID
+	lcdClear
+	stopPWM
+	call		FORWARD
+	startPWM
+	
+ploop	
+	call		PID
+	lcdHomeLine
+	call		disp_encoders
+	lcdNewLine
+	movff		LeftSpeed,NumL
+	call		bin8_BCD
+	call		Disp_Number
+	movlw		0x20
+	lcdData
+	movff		RightSpeed,NumL
+	call		bin8_BCD
+	call		Disp_Number
+	
+	
+	bra		ploop
+	
     
     ;**********************************************************************
     ;
@@ -1028,9 +1114,6 @@ FirstDigitSeconds
         movf    temp_var5, W
         subwf   temp_var4, w                 
         bnn     FirstDigitSecondsNotNegative ; no other processing needed
-                                             ; if this is not negative
-                                       
-        ; if negative, then add 10 to it
         addlw   d'10'
         andlw   0x0F                    ; mask to have lower bit only
         movwf   second_diff
