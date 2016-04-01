@@ -248,7 +248,7 @@ PidInitalize:
 	clrf	BARGB1
 	clrf	BARGB2
 				
-	movlw	.60        					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
+	movlw	.58        					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
 	movwf	kp						;Enter the PID gains scaled by a factor of 16, max = 255
 
 	movlw	.160					;10 x 16
@@ -266,10 +266,11 @@ PidInitalize:
 	bsf		pidStat1,a_err_sign		;start w/ accumulated error = positive	
 	
 	bcf		PIR1,TMR1IF				;clear T1 flag
-	bsf		PIE1,TMR1IE				;enable T1 interrupt
+	;bsf		PIE1,TMR1IE				;enable T1 interrupt
+	bcf		PIE1,TMR1IE				;disable T1 interrupt.  
 	
 	movlw	b'00000001'				;configure T1 for Timer operation from Fosc/4
-	movwf	T1CON		
+	;movwf	T1CON		
 	movlw	timer1Hi				;load T1 registers with 5ms count
 	movwf	TMR1H
 	movlw	timer1Lo
@@ -302,7 +303,7 @@ PidInitalize:
 PidMain:
 	GLOBAL	PidMain
 	banksel derivCount		    ;change for PID calculations 
-	
+	call	getError
 	bcf		PIE1,TMR1IE			;disable T1 interrupt
 	
 #ifdef		pid_100				;if using % scale then scale up PLANT error
@@ -318,16 +319,24 @@ PidMain:
 	cpfseq	error1				;YES, Is error1 = 00 ?
 	bra		call_pid_terms		;NO, start proportional term
 	bsf		pidStat1,err_z		;YES, set error zero flag
-	bsf		PIE1,TMR1IE			;enable T1 interrupt
+	;bsf		PIE1,TMR1IE			;enable T1 interrupt
+	banksel RightH			;return to original bank
 	return						;return back to the main application code
 	
 call_pid_terms
 	call	Proportional		;NO, start with proportional term
 	;call	Integral			;get Integral term	
 	;call	Derivative			;get Derivative term
+	
+	clrf	integ0
+	clrf	integ1
+	clrf	integ2
+	clrf	deriv0
+	clrf	deriv1
+	clrf	deriv2
 
 	call 	GetPidResult		;get the final PID result that will go to the system
-	bsf		PIE1,TMR1IE			;enable T1 interrupt
+	;bsf		PIE1,TMR1IE			;enable T1 interrupt
 	
 	
 	banksel RightH			;return to original bank
@@ -900,7 +909,7 @@ PidInterrupt:
 	
 	call	GetA_Error					;get a_error, is a_error = 00? reached limits?
 	
-derivative_ready?
+derivative_ready
 	decfsz	derivCount,f 				;is it time to calculate d_error ?
 	bra		skip_deriv					;NO, finish ISR
 	call	GetDeltaError				;error - p_error
@@ -956,8 +965,47 @@ makePositive:
 	comf	    error0
 	comf	    error1
 	add16	    error0,error1,1
-	
 	return
+	
+getError:
+	clrf	AARGB0
+	clrf	BARGB0
+	
+	movff	RightH,AARGB1
+	movff	RightL,AARGB2
+	movff	LeftH,BARGB1
+	movff	LeftL,BARGB2
+	
+	btfsc	AARGB1,7
+	call	RightEncNeg
+	
+	btfsc	BARGB1,7
+	call	LeftEncNeg
+		
+	;A0A1A2 - B0B1B2
+	call	_24_bit_sub
+	btfsc	STATUS,C
+	bsf	pidStat1,err_sign
+	btfss	STATUS,C 
+	bcf	pidStat1,err_sign
+	
+	movff	AARGB1,error0
+	movff	AARGB2,error1
+	
+	btfsc	error0,7
+	call	makePositive
+	
+	bsf	pidStat1,err_z
+	
+	movlw	0x00
+	cpfseq	error0
+	bcf	pidStat1,err_z
+	
+	movlw	0x00
+	cpfseq  error1
+	bcf	pidStat1,err_z
+	return 
+	
 	END               					;directive 'end of program'
 	
 	

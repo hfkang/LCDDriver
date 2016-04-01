@@ -67,7 +67,7 @@ updates		res 1
 		
 MAIN CODE 
     global	    ErrorState,threshL,threshH,mypidStat1,mypidOut0,mypidOut1,mypidOut2
-    global	    dispOperationData
+    global	    dispOperationData,dispCorrection
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
@@ -962,8 +962,16 @@ dispOperationData
 	movff		RightSpeed,NumL
 	call		bin8_BCD
 	call		Disp_Number
-	
 	return	    
+	
+dispCorrection:
+	lcdNewLine
+	movff		mypidOut1,NumH
+	movff		mypidOut2,NumL
+	call		bin16_BCD
+	call		Disp_Number
+	return		
+	
 	
     
     ;**********************************************************************

@@ -6,7 +6,7 @@
     extern DELAY_ROUTINE,ErrorState
     extern  mypidStat1,mypidOut0,mypidOut1,mypidOut2, PidMain
     extern  pidStat1,pidOut0,pidOut1,pidOut2
-    extern  dispOperationData
+    extern  dispOperationData,dispCorrection
     
     
     #define pid_sign	    7
@@ -67,8 +67,9 @@ pid_overflow:
 	stopPWM
 	bcf	    LeftMotor
 	bcf	    RightMotor
-	call	    dispOperationData
-failure	bra	    failure
+	;call	    dispOperationData
+	;call	    dispCorrection
+failure	;bra	    failure
 	
 	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
 	bra	    forceRight
@@ -124,6 +125,7 @@ turnLeft:
 	
 	return
 	
+
 	
 old_PID
 	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
