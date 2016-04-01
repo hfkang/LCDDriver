@@ -4,9 +4,12 @@
 
     extern LeftL, LeftH ,RightL,RightH,threshH,threshL
     extern DELAY_ROUTINE,ErrorState
+    extern  mypidStat1,mypidOut0,mypidOut1,mypidOut2, PidMain
+    extern  pidStat1,pidOut0,pidOut1,pidOut2
+    extern  dispOperationData
     
     
-    
+    #define pid_sign	    7
 
 
    
@@ -35,7 +38,94 @@ CONFIG_PWM
 	movwf	    T2CON
 	return 
 	
-PID
+PID:	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
+	movlf	    DutyDefault,RightSpeed
+	call	    PidMain
+	banksel	    mypidStat1
+
+	movff	    pidStat1,mypidStat1
+	movff	    pidOut0,mypidOut0
+	movff	    pidOut1,mypidOut1
+	movff	    pidOut2,mypidOut2
+	
+	movff	    mypidOut2,offset	
+	
+	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
+	call	    turnRight
+	btfss	    mypidStat1,pid_sign
+	call	    turnLeft	   
+	
+	clrf	    threshH
+	movlf	    Duty50,threshL
+	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_normal
+	
+pid_normal:
+	startPWM
+	bra	    pid_end
+	
+pid_overflow:
+	stopPWM
+	bcf	    LeftMotor
+	bcf	    RightMotor
+	call	    dispOperationData
+failure	bra	    failure
+	
+	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
+	bra	    forceRight
+	btfss	    mypidStat1,pid_sign
+	bra	    forceLeft	
+
+forceRight
+	clrf	    RightSpeed
+	movlf	    DutyDefault,LeftSpeed
+	bsf	    LeftMotor
+	bcf	    RightMotor
+	
+	bra	    pid_end
+	
+forceLeft
+	clrf	    LeftSpeed
+	movlf	    DutyDefault,RightSpeed
+	bcf	    LeftMotor
+	bsf	    RightMotor
+	bra	    pid_end
+	
+pid_end:
+	return 
+	
+	
+turnRight:
+	
+	movf	    offset,W
+	subwf	    RightSpeed
+	;movf	    offset,W
+	;addwf	    LeftSpeed
+
+	;toggleMotor LeftConfig, disablePWM
+	;bsf	    LeftMotor 
+
+	return
+turnLeft:
+	;1FFE
+	;movlw	    0x1F
+	;addwf	    mypidOut1	
+	;movlw	    0xFF
+	;addwf	    mypidOut2
+	
+	;comf	    mypidOut1
+	;comf	    mypidOut2
+	;add16	    mypidOut1,mypidOut2,1
+	
+	movf	    offset,W
+	subwf	    LeftSpeed
+
+	;toggleMotor RightConfig, disablePWM
+	;bsf	    RightMotor 
+	
+	return
+	
+	
+old_PID
 	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
 	movlf	    DutyDefault,RightSpeed
 	;movf	    LeftH,W			;copy Left to Wreg

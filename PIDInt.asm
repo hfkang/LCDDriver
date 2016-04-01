@@ -76,6 +76,8 @@
 
         list		p=18F4620      
         #include	<p18f4620.inc>  
+	#include	<MACROS.inc>
+
 	
 ;***** SYSTEM CONSTANTS
 #define	aErr1Lim		0x0F	;accumulative error limits (4000d)
@@ -89,16 +91,22 @@
 ;#define	pid_100			;comment out if not using a 0 - 100% scale
 
 		
-	EXTERN	FXM1616U,FXD2416U,_24_BitAdd,_24_bit_sub	
-	EXTERN	AARGB0,AARGB1,AARGB2,AARGB3		
-	EXTERN	BARGB0,BARGB1,BARGB2,BARGB3
-	extern	RightH,RightL,LeftH,LeftL
+	extern	FXM1616U,FXD2416U,_24_BitAdd,_24_bit_sub	
+	global	AARGB0,AARGB1,AARGB2,AARGB3		
+	global	BARGB0,BARGB1,BARGB2,BARGB3
+	global	ZARGB0,ZARGB1,ZARGB2
+	global	REMB0,REMB1
+	global	TEMP,TEMPB0,TEMPB1,TEMPB2,TEMPB3
+	global	LOOPCOUNT,AEXP,CARGB2
+
+	extern	RightH,RightL,LeftH,LeftL,mypidStat1,mypidOut0,mypidOut1,mypidOut2
 	
 	GLOBAL	error0, error1, pidStat1
+	global  pidOut0,pidOut1,pidOut2
 	
 ;***** VARIABLE DEFINITIONS 
 
-pid_data	UDATA
+pid_data	UDATA	0x100
 #ifdef	pid_100
 percent_err	RES	1			;8-bit error input, 0 - 100% (0 - 100d)
 percent_out	RES	1			;8-bit output, 0 - 100% (0 - 100d)
@@ -122,10 +130,10 @@ d_Error1	RES	1
 prop0		RES	1			;24-bit proportional value 
 prop1		RES	1
 prop2		RES	1
-integ0		RES 1			;24-bit Integral value 
+integ0		RES	1			;24-bit Integral value 
 integ1		RES	1
 integ2		RES	1
-deriv0		RES 1			;24-bit Derivative value 
+deriv0		RES	1			;24-bit Derivative value 
 deriv1		RES	1
 deriv2		RES	1
 
@@ -136,6 +144,30 @@ kd			RES	1			;8-bit derivative Gain
 pidStat1	RES	1			;PID bit-status register
 pidStat2	RES	1			;PID bit-status register2
 tempReg		RES	1			;temporary register
+		
+AARGB0		RES 1		
+AARGB1		RES 1
+AARGB2		RES 1
+AARGB3		RES 1
+BARGB0		RES 1	
+BARGB1		RES 1
+BARGB2		RES 1
+BARGB3		RES 1
+REMB0		RES 1	
+REMB1		RES 1
+REMB2		RES 1
+REMB3		RES 1	
+TEMP		RES 1
+TEMPB0		RES 1
+TEMPB1		RES 1
+TEMPB2		RES 1
+TEMPB3		RES 1
+ZARGB0		RES 1
+ZARGB1		RES 1
+ZARGB2		RES 1
+CARGB2		RES	1
+AEXP		RES 1
+LOOPCOUNT	RES 1
 
 ;                                    pidStat1 register                                             
 ;	_______________________________________________________________________________________________
@@ -180,6 +212,7 @@ _PIDCODE	CODE			;start PID code here
 ;***********************************************************************;
 PidInitalize:
 	GLOBAL	PidInitalize
+	banksel derivCount
 	clrf	error0			
 	clrf	error1	
 	clrf	a_Error0	
@@ -215,7 +248,7 @@ PidInitalize:
 	clrf	BARGB1
 	clrf	BARGB2
 				
-	movlw	.160					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
+	movlw	.60        					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
 	movwf	kp						;Enter the PID gains scaled by a factor of 16, max = 255
 
 	movlw	.160					;10 x 16
@@ -241,6 +274,8 @@ PidInitalize:
 	movwf	TMR1H
 	movlw	timer1Lo
 	movwf	TMR1L
+	
+	banksel RightH
 
 	return							;return back to the main application code
 
@@ -266,7 +301,10 @@ PidInitalize:
 ;***********************************************************************;
 PidMain:
 	GLOBAL	PidMain
+	banksel derivCount		    ;change for PID calculations 
+	
 	bcf		PIE1,TMR1IE			;disable T1 interrupt
+	
 #ifdef		pid_100				;if using % scale then scale up PLANT error
 	movlw	.40					; 0 - 100% == 0 - 4000d			
 	mulwf	percent_err,1		;40 * percent_err --> PRODH:PRODL
@@ -285,11 +323,14 @@ PidMain:
 	
 call_pid_terms
 	call	Proportional		;NO, start with proportional term
-	call	Integral			;get Integral term	
-	call	Derivative			;get Derivative term
+	;call	Integral			;get Integral term	
+	;call	Derivative			;get Derivative term
 
 	call 	GetPidResult		;get the final PID result that will go to the system
 	bsf		PIE1,TMR1IE			;enable T1 interrupt
+	
+	
+	banksel RightH			;return to original bank
 	return						;return back to the main application code
 		
 		
@@ -503,6 +544,8 @@ scale_down
 	movwf	percent_out				;error has been scaled down and is now available in a 0 -100% range
 #endif	
 		
+
+	
 	return							;return to mainline code
 
 
@@ -813,6 +856,8 @@ bargb_big
 PidInterrupt:
 	GLOBAL	PidInterrupt
 	
+	banksel	AARGB0
+	
 	clrf	AARGB0
 	clrf	BARGB0
 	
@@ -821,6 +866,12 @@ PidInterrupt:
 	movff	LeftH,BARGB1
 	movff	LeftL,BARGB2
 	
+	btfsc	AARGB1,7
+	call	RightEncNeg
+	
+	btfsc	BARGB1,7
+	call	LeftEncNeg
+		
 	;A0A1A2 - B0B1B2
 	call	_24_bit_sub
 	btfsc	STATUS,C
@@ -830,6 +881,9 @@ PidInterrupt:
 	
 	movff	AARGB1,error0
 	movff	AARGB2,error1
+	
+	btfsc	error0,7
+	call	makePositive
 	
 	bsf	pidStat1,err_z
 	
@@ -842,7 +896,8 @@ PidInterrupt:
 	bcf	pidStat1,err_z
 	
 	btfsc	pidStat1,err_z				;Is error = 00 ?
-	return								;YES, done.
+	bra	skip_deriv								;YES, done.
+	
 	call	GetA_Error					;get a_error, is a_error = 00? reached limits?
 	
 derivative_ready?
@@ -858,8 +913,51 @@ skip_deriv
 	movwf	TMR1H
 	movlw	timer1Lo
 	movwf	TMR1L
+	bcf	PIR1, TMR1IF
+	
+	movff	pidStat1, mypidStat1    ;copy variable for later use 
+	
+	banksel	RightH							;go back to original bank
 	return								;return back to the application's ISR
-		
+	
+RightEncNeg: ;invert A, add to B and clear
+	comf	    AARGB1
+	comf	    AARGB2
+	add16	    AARGB1,AARGB2,1
+	
+	movf	    AARGB2,W
+	addwf	    BARGB2
+	
+	btfsc	    STATUS,C
+	incf	    BARGB1
+	
+	movf	    AARGB1,W
+	addwf	    BARGB1
+	
+	clrf	    AARGB1
+	clrf	    AARGB2
+	
+	return 
+LeftEncNeg:
+	comf	    BARGB1
+	comf	    BARGB2
+	add16	    BARGB1,BARGB2,1
+	movf	    BARGB2,W
+	addwf	    AARGB2
+	btfsc	    STATUS,C
+	incf	    AARGB1
+	movf	    BARGB1,W
+	addwf	    AARGB1
+	clrf	    BARGB1
+	clrf	    BARGB2
+	return 
+
+makePositive:
+	comf	    error0
+	comf	    error1
+	add16	    error0,error1,1
+	
+	return
 	END               					;directive 'end of program'
 	
 	

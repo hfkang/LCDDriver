@@ -167,7 +167,19 @@ startPWM macro
 	mask_bits   CCP1CON, 0x0F
 	movlw	    0x0C
 	mask_bits   CCP2CON, 0x0F	
+	movlw	    DutyDefault
+	movwf	    PR2
+	movlw	    B'00000101'	;configure T2CON, set prescaler to 4
+	movwf	    T2CON
+
+
 	endm
+	
+toggleMotor macro    Side, Setting
+	movlw	     Setting
+	mask_bits    Side, 0x0F
+	endm
+	
 disp16bit macro high, low
 	movff	low,NumL
 	movff	high,NumH
@@ -179,6 +191,7 @@ disp16bit macro high, low
 ;This macro does a 16 bit comaprison operation, and branches depending on how the values turn out
 comp16 macro varH,varL,gotoHigh,gotoLow,gotoEq
 	local	    _geeq,_eq,_geeqlow
+	banksel	    varH
 	movf	    threshH,W
 	cpfslt	    varH   
 	bra	    _geeq	    ;since varH >= threshH, go to high method

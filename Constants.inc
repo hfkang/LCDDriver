@@ -44,12 +44,22 @@
 #define DutyDefault	0x40
 #define	DutyMax		0x40
 #define	Duty90		0x3A
+#define	Duty85		.55
+#define Duty825		D'53'
+#define	Duty80		0x35
 #define	Duty75		0x30
+#define	Duty70		0x2C
 #define	Duty50		0x20
 #define	Duty25		0x10
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   
+#define LeftMotor	LATC,2
+#define	RightMotor	LATC,1
+#define LeftConfig	CCP1CON
+#define	enablePWM	0x0C
+#define	disablePWM	0x00
+#define	RightConfig	CCP2CON
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
 #define	StepDelay	0x01

@@ -40,12 +40,9 @@ rtc_day		res 1
 rtc_date	res 1
 rtc_mon		res 1
 rtc_yr		res 1
-		    
 tens_digit	res 1
 ones_digit	res 1
 temp_var2	res 1
-
-; Computing time difference registers
 start_time_sec	res 1
 start_time_min	res 1
 end_time_sec	res 1
@@ -55,18 +52,22 @@ temp_var5	res 1
 second_diff	res 1
 min_diff	res 1
 binstate	res 1
-	
-gapL		res 1		;used when we need to move x cm away from
-gapH		res 1		;our current position 
 steps		res 1
-		
 stepsH	    	res 1
 stepsL		res 1
 armState	res 1
-obstacleL	res 1
+				    ;bank0 buffered version of PID variables. Because bank switching is annoying 
+mypidOut0	res 1
+mypidOut1	res 1
+mypidOut2	res 1
+mypidStat1	res 1
+	
+updates		res 1
+	
 		
 MAIN CODE 
-    global	    ErrorState,threshL,threshH
+    global	    ErrorState,threshL,threshH,mypidStat1,mypidOut0,mypidOut1,mypidOut2
+    global	    dispOperationData
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
@@ -132,7 +133,6 @@ int2
     db "int2",0
 Ultrasound
     db "Ultrasound:",0
-
 start
     movlw	B'01110010'	;Set internal oscillator frequency to 8MHz
     movwf	OSCCON		
@@ -198,7 +198,8 @@ start
     clrf	B7H
     clrf	B7S
     clrf	armState
-    clrf	obstacleL
+    movlf	0xFF,PoleL	;stop premature beeping on the first run 
+    
      
     movlw	B'00001101'	;configure ADCON1, Analog in for RA0, RA1  
     movwf	ADCON1		
@@ -216,11 +217,13 @@ start
     bcf		RightDirection
     call	CONFIG_PWM	
     stopPWM
-    ;call	PidInitalize		;initialize PID variables 
+    bcf		LeftMotor
+    bcf		RightMotor
+    call	PidInitalize		;initialize PID variables 
     
-    goto	testAN937
 
-    
+    ;goto	fivesteps
+    ;goto	testAN937
     ;goto	ultratest
     ;goto	testBuzzer
     ;goto	testPWM
@@ -748,6 +751,7 @@ quit
     dispText		extendarmmsg,first_line
     
 fivesteps
+    bcf			STEP_ENABLE 
     call		STEPPER
     delay		STEPPER_SPEED 
     btfss		KEYPAD_DA
@@ -922,12 +926,31 @@ endtest	    bra	    endtest
     ;**********************************************************************    
 testPID
 	lcdClear
+	call	FORWARD
 	stopPWM
-	call		FORWARD
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	call	SuperDelay
+	resetencoders
+	call	PID
 	startPWM
-	
+	movlf	D'255',updates
 ploop	
 	call		PID
+	banksel		RightH
+	decfsz		updates
+	bra		ploop
+	call		dispOperationData
+	movlf		D'255',updates
+	
+	bra		ploop
+	
+dispOperationData
 	lcdHomeLine
 	call		disp_encoders
 	lcdNewLine
@@ -940,8 +963,7 @@ ploop
 	call		bin8_BCD
 	call		Disp_Number
 	
-	
-	bra		ploop
+	return	    
 	
     
     ;**********************************************************************
@@ -953,7 +975,6 @@ extendarmmsg
 	db "Move arm out",0
 retractarmmsg
 	db "Retract arm in",0
-    
 testStepper
     stopPWM
     bcf		STEPDIR
@@ -970,7 +991,6 @@ li  call	STEPPER
     bra		li
     bra		testStepper
     return 
-    
     
 T0Overflow
     comf	LATC

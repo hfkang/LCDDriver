@@ -8,24 +8,25 @@
 							
 ;24/16 	Unsigned Divide			
 			
-	list		p=18F452       
-	#include	<p18F452.inc> 
+	list		p=18F4620      
+	#include	<p18F4620.inc> 
 
 	#define	_Z		STATUS,2
 	#define	_C		STATUS,0
 	
-	GLOBAL	AARGB0,AARGB1,AARGB2,AARGB3		
-	GLOBAL	BARGB0,BARGB1,BARGB2,BARGB3
-	GLOBAL	ZARGB0,ZARGB1,ZARGB2
-	GLOBAL	REMB0,REMB1
-	GLOBAL	TEMP,TEMPB0,TEMPB1,TEMPB2,TEMPB3
-	GLOBAL	LOOPCOUNT,AEXP,CARGB2
+	extern	AARGB0,AARGB1,AARGB2,AARGB3		
+	extern	BARGB0,BARGB1,BARGB2,BARGB3
+	extern	ZARGB0,ZARGB1,ZARGB2
+	extern	REMB0,REMB1
+	extern	TEMP,TEMPB0,TEMPB1,TEMPB2,TEMPB3
+	extern	LOOPCOUNT,AEXP,CARGB2
 
+	
 	
 LSB			equ	0
 MSB			equ	7
-
-	UDATA	
+#ifdef		pidmathstandalone
+pid_data	UDATA	
 AARGB0		RES 1		
 AARGB1		RES 1
 AARGB2		RES 1
@@ -49,8 +50,8 @@ ZARGB2		RES 1
 CARGB2		RES	1
 AEXP		RES 1
 LOOPCOUNT	RES 1
-
-
+#endif
+	
 math_code	CODE
 ;---------------------------------------------------------------------
 ;		24-BIT ADDITION				
