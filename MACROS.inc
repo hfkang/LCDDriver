@@ -267,6 +267,20 @@ stopStepperMotor macro
     bcf	    T3INTENABLE
     bsf	    STEP_ENABLE
     endm
+    
+extendStepper macro
+    bsf	    STEPDIR
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    bsf	    STEP_ENABLE
+    endm
+
+retractStepper macro
+    bcf	    STEPDIR
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    bsf	    STEP_ENABLE
+    endm
 
 	
 encOffset macro	    offset

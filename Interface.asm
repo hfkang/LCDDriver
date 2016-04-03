@@ -246,7 +246,7 @@ start
     call	PidInitalize		;initialize PID variables 
     
 
-    ;goto	ss 
+    ;call	ss 
     ;goto	fivesteps
     ;goto	testAN937
     ;goto	ultratest
@@ -391,10 +391,8 @@ _rev
     movlf		armStepL,stepsL
     stopPWM
     dispText		extendarmmsg,first_line
-    bsf	    STEPDIR
-    bsf	    T3ENABLE
-    bsf	    T3INTENABLE
-    bcf	    STEP_ENABLE
+    extendStepper
+    
 extend
     clrf		threshH
     movlf		0x05,threshH
@@ -479,11 +477,7 @@ retractarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ra,_pid2,_pid2	    		;only go through with stepper actuation if necessary 
 _ra    
-    bcf	    STEPDIR
-    bsf	    T3ENABLE
-    bsf	    T3INTENABLE
-    bcf	    STEP_ENABLE
-    
+    retractStepper
     bra		_pid2
     
 extendarm   
@@ -495,11 +489,7 @@ extendarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ea,_pid2,_pid2
 _ea    
-    bsf	    STEPDIR
-    bsf	    T3ENABLE
-    bsf	    T3INTENABLE
-    bcf	    STEP_ENABLE
-    
+    extendStepper
     bra		_pid2
     
 nopole    
