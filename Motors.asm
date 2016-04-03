@@ -6,16 +6,17 @@
     extern DELAY_ROUTINE,ErrorState
     extern  mypidStat1,mypidOut0,mypidOut1,mypidOut2, PidMain
     extern  pidStat1,pidOut0,pidOut1,pidOut2
-    extern  dispOperationData,dispCorrection,stepsH,stepsL
+    extern  dispOperationData,dispCorrection,stepsH,stepsL,tempwreg
     
     
     #define pid_sign	    7
 
 
    
-    udata
+main_bank    udata
 offset	    res	    1 
 direction   res	    1
+
     
     code
     global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction
@@ -277,21 +278,25 @@ FORWARD
        
 STEPPER
 	banksel		direction
+	movwf		tempwreg
+	
 	bsf		STEP
 	delay		0x2		;gives 15 us delay 
 	bcf		STEP
 	
 	movlf		STEPPER_SPEED,TMR3H
 	movlf		STEPPER_SPEEDL,TMR3L
-	sub16		stepsH,stepsL,1
-	movlw		0x00
-	cpfseq		stepsH
-	bra		fin_stepper
-	cpfseq		stepsL
-	bra		fin_stepper
-	stopStepperMotor
+	
+	;sub16		stepsH,stepsL,1
+	;movlw		0x00
+	;cpfseq		stepsH
+	;bra		fin_stepper
+	;cpfseq		stepsL
+	;bra		fin_stepper
+	;stopStepperMotor
 fin_stepper
 	bcf		T3FLAG
+	movf		tempwreg,W
 	retfie
 	
 	end

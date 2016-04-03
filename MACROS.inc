@@ -272,7 +272,7 @@ extendStepper macro
     bsf	    STEPDIR
     bsf	    T3ENABLE
     bsf	    T3INTENABLE
-    bsf	    STEP_ENABLE
+    bcf	    STEP_ENABLE
     endm
 
 retractStepper macro

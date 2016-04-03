@@ -52,12 +52,13 @@ ultra3	    res	    1
 ultrastate  res	    1
 comparetemp res	    1
 ultralol    res	    1
+tempwreg    res	    1
 	    
 	    
     code
     global	ADC,PING,DIST, NumH, NumL, TenK, Thou ,Hund, Tens, Ones,ENCODER1,ENCODER2, LeftL, LeftH, disp_encoders,RightL,RightH,PoleL,PoleH
     global	IRState, B1L,B1H,B1S,B2L,B2H,B2S,B3L,B3H,B3S,B4L,B4H,B4S,B5L,B5H,B5S,B6L,B6H,B6S,B7L,B7H,B7S, Disp_Number,dispPING,BinNum,PoleLocH,PoleLocL
-    global	ultrastate,ultra1,ultra2,ultra3,ultra4,ultralol
+    global	ultrastate,ultra1,ultra2,ultra3,ultra4,ultralol,tempwreg
 ;ADC is a blocking subroutine, in that it involves slightly longer delays 
 ADC	movlw	B'00000001'	;configure ADCON0 for AN0 input (RA0)
 	banksel	direction

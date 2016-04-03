@@ -1,6 +1,6 @@
 #define RS  LATD,2
 #define E   LATD,3
-#define LCD_DELAY_DURATION  0x20
+#define LCD_DELAY_DURATION  0x9
 #define	LCD_PORT    LATD
 
 #define BUZZER	    LATC,0
@@ -9,8 +9,6 @@
 #define second_line b'11000000'
 #define	KEYPAD_DA   PORTB,1
 #define	KEYPAD_PORT PORTA
-
-
 
 
 #define	fourMeters	    0x06    ;check on the high bit for the encoders
@@ -65,7 +63,7 @@
 #define	RightConfig	CCP2CON
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
-#define	StepDelay	0x01
+#define	StepDelay	0x05
 
 #define	STEPPER_SPEED	0xFE
 #define STEPPER_SPEEDL	0xD0

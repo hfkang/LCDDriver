@@ -66,11 +66,12 @@ Loop3
 Loop2
     movwf delay1
 Loop1
-      decfsz delay1,F
-	goto Loop1
+    decfsz delay1,F
+	bra Loop1
     decfsz delay2,F
-	goto Loop2
+	bra Loop2
     decfsz delay3,F
+	bra Loop3
     return
     
   

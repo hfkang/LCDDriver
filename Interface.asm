@@ -233,7 +233,7 @@ start
     
 
     
-    delay	0x50		;wait for LCD to initialie 
+    delay	0x10		;wait for LCD to initialie 
     call	LCD_INIT     
     call        ConfigureI2C            ; Configures I2C for RTC
     
@@ -356,13 +356,13 @@ _pid
     cpfslt	CurrBin		
     goto	_rev		;go to reverse process if we've reached 7 bins
     
-    ;decfsz	updates
-    ;bra		checkdistance
-    ;movlf	0xFF,updates
+    delay	LCD_DELAY_DURATION
+    
     lcdHomeLine
     call	disp_encoders
     lcdNewLine
     call	dispPING
+    
     ;movlf	0x06,threshH
     ;movlf	0x1D,threshL
     
@@ -385,6 +385,7 @@ mayberev
     ;**************************************************************************
 
 _rev
+    banksel		CurrBin
     incf		CurrBin	    ;account for decrement offset in code 
     stopPWM
     movlf		armStepH,stepsH
@@ -394,15 +395,17 @@ _rev
     extendStepper
     
 extend
+    delay		StepDelay
+    sub16		stepsH,stepsL,1
+    
     clrf		threshH
-    movlf		0x05,threshH
+    movlf		0x05,threshL
     comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
 stahp_extend
     stopStepperMotor
     call	PING		    ;check the ultrasonic now. 
     call	REVERSE			;enter reverrse mode 
     dispText	ReverseMsg,first_line
-    ;call	READ_KEYPAD
     startPWM
     
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -468,7 +471,8 @@ nearpole
     movff	PoleLocL,threshL
     comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
 
-retractarm 
+retractarm
+    bra		_pid2
     dispText	RetractingArm,first_line
     btfss	retracted
     call	loadsteps
@@ -481,6 +485,7 @@ _ra
     bra		_pid2
     
 extendarm   
+    bra		_pid2
     dispText	ExtendingArm,first_line
     btfss	extended
     call	loadsteps
@@ -1085,6 +1090,7 @@ lo  call	STEPPER
     btfss	PORTB,1
     bra		lo
     dispText	retractarmmsg,first_line
+    
     bsf		STEPDIR
 li  call	STEPPER
     delay	STEPPER_SPEED
@@ -1102,12 +1108,7 @@ SuperDelay
     delay 0xFF
     delay 0xFF
     delay 0xFF
-    delay 0xFF
-    delay 0xFF
-    delay 0xFF    
-    delay 0xFF    
-    delay 0xFF
-    delay 0xFF    
+
     return
     
 testBuzzer
