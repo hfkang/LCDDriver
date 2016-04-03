@@ -66,7 +66,10 @@
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
 #define	StepDelay	0x01
-#define	STEPPER_SPEED	0x25
+
+#define	STEPPER_SPEED	0xFE
+#define STEPPER_SPEEDL	0xD0
+
 #define	POLE_SPEED	0x25
 #define poleOffset	0xAA		;about one full wheel rev (22cm)
 #define	armStepH	0x09

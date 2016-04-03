@@ -261,6 +261,12 @@ movlf   macro   literal, register
 	movlw   literal
 	movwf   register
 	endm
+	
+stopStepperMotor macro
+    bcf	    T3ENABLE
+    bcf	    T3INTENABLE
+    bsf	    STEP_ENABLE
+    endm
 
 	
 encOffset macro	    offset

@@ -68,7 +68,7 @@ encThreshH	res 1
 		
 MAIN CODE 
     global	    ErrorState,threshL,threshH,mypidStat1,mypidOut0,mypidOut1,mypidOut2
-    global	    dispOperationData,dispCorrection
+    global	    dispOperationData,dispCorrection,stepsH,stepsL
 isr
 	btfsc	INTCON,	    0	;branch if it was a port thing
 	call	DIST,	    1
@@ -79,7 +79,7 @@ isr
 	btfsc	PIR1,	    TMR1IF				
 	call	PidInterrupt
 	btfsc	T3FLAG
-	call	STEP
+	call	STEPPER
 	retfie
 	
 Start_Msg
@@ -136,6 +136,12 @@ int2
     db "int2",0
 Ultrasound
     db "Ultrasound:",0
+ExtendingArm
+    db "Extending Arm",0
+RetractingArm
+    db "Retract Arm",0
+
+   
 start
     movlw	B'01110010'	;Set internal oscillator frequency to 8MHz
     movwf	OSCCON		
@@ -221,6 +227,9 @@ start
     bcf		T3ENABLE
     bcf		T3INTENABLE
     bcf		T3FLAG
+    bsf		STEPDIR		;forward direction by default
+    bsf		STEP_ENABLE	;disable stepper until needed
+
     
 
     
@@ -237,6 +246,7 @@ start
     call	PidInitalize		;initialize PID variables 
     
 
+    ;goto	ss 
     ;goto	fivesteps
     ;goto	testAN937
     ;goto	ultratest
@@ -377,24 +387,20 @@ mayberev
 _rev
     incf		CurrBin	    ;account for decrement offset in code 
     stopPWM
-    bsf			STEPDIR	
-    bcf			STEP_ENABLE
     movlf		armStepH,stepsH
     movlf		armStepL,stepsL
     stopPWM
     dispText		extendarmmsg,first_line
+    bsf	    STEPDIR
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    bcf	    STEP_ENABLE
 extend
-    call		STEPPER
-    delay		STEPPER_SPEED 
-    sub16		stepsH,stepsL,1
     clrf		threshH
     movlf		0x05,threshH
     comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
 stahp_extend
-    clrf		stepsH
-    clrf		stepsL
-    bsf			STEP_ENABLE
-    
+    stopStepperMotor
     call	PING		    ;check the ultrasonic now. 
     call	REVERSE			;enter reverrse mode 
     dispText	ReverseMsg,first_line
@@ -465,6 +471,7 @@ nearpole
     comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
 
 retractarm 
+    dispText	RetractingArm,first_line
     btfss	retracted
     call	loadsteps
     bsf		retracted
@@ -472,14 +479,15 @@ retractarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ra,_pid2,_pid2	    		;only go through with stepper actuation if necessary 
 _ra    
-    bcf		STEP_ENABLE
-    bcf		STEPDIR
-    call	STEPPER
-    sub16	stepsH,stepsL,1
-    delay	POLE_SPEED
+    bcf	    STEPDIR
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    bcf	    STEP_ENABLE
+    
     bra		_pid2
     
 extendarm   
+    dispText	ExtendingArm,first_line
     btfss	extended
     call	loadsteps
     bsf		extended
@@ -487,15 +495,16 @@ extendarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ea,_pid2,_pid2
 _ea    
-    bcf		STEP_ENABLE
-    bsf		STEPDIR
-    call	STEPPER
-    sub16	stepsH,stepsL,1
-    delay	POLE_SPEED
+    bsf	    STEPDIR
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    bcf	    STEP_ENABLE
+    
     bra		_pid2
     
 nopole    
-    bsf		STEP_ENABLE
+    stopStepperMotor
+    
     lcdHomeLine
     call	disp_encoders
     lcdNewLine
@@ -885,10 +894,21 @@ u1  call	PING
     ;************************************************************************
     ;Stepper Motor Testing
     ;************************************************************************
-ss  call	STEPPER
-    delay	STEPPER_SPEED
-    bra	ss
+ss  
+    bsf	    STEPDIR
+ss_loop
+    bsf	    T3ENABLE
+    bsf	    T3INTENABLE
+    
+    bcf	    STEP_ENABLE
+    
+    btfss   KEYPAD_DA
+    bra	    $-2
+    
+    bcf	    STEPDIR
+    bra	    ss_loop
     return
+    
     
     ;************************************************************************
     ;PWM Forward Reverse Testing

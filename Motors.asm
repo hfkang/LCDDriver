@@ -6,7 +6,7 @@
     extern DELAY_ROUTINE,ErrorState
     extern  mypidStat1,mypidOut0,mypidOut1,mypidOut2, PidMain
     extern  pidStat1,pidOut0,pidOut1,pidOut2
-    extern  dispOperationData,dispCorrection
+    extern  dispOperationData,dispCorrection,stepsH,stepsL
     
     
     #define pid_sign	    7
@@ -276,11 +276,21 @@ FORWARD
 
        
 STEPPER
-	banksel		delay1
+	banksel		direction
 	bsf		STEP
 	delay		0x2		;gives 15 us delay 
 	bcf		STEP
 	
+	movlf		STEPPER_SPEED,TMR3H
+	movlf		STEPPER_SPEEDL,TMR3L
+	sub16		stepsH,stepsL,1
+	movlw		0x00
+	cpfseq		stepsH
+	bra		fin_stepper
+	cpfseq		stepsL
+	bra		fin_stepper
+	stopStepperMotor
+fin_stepper
 	bcf		T3FLAG
 	retfie
 	
