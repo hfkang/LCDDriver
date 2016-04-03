@@ -2,7 +2,7 @@
     #include <MACROS.inc>
     #include <Constants.inc>
         
-   udata 
+main_bank   udata 
 delay1	    res 1
 delay2	    res 1
 delay3	    res 1

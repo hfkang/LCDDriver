@@ -5,7 +5,7 @@
     extern bin16_BCD, direction
     extern LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
     
-    udata
+main_bank   udata
 NumH	    res	    1
 NumL	    res	    1
 TenK	    res	    1
@@ -45,14 +45,22 @@ PoleH	    res	    1
 PoleL	    res	    1
 PoleLocL    res	    1
 PoleLocH    res	    1
-
+ultra4	    res	    1
+ultra1	    res	    1
+ultra2	    res	    1
+ultra3	    res	    1
+ultrastate  res	    1
+comparetemp res	    1
+ultralol    res	    1
 	    
 	    
     code
     global	ADC,PING,DIST, NumH, NumL, TenK, Thou ,Hund, Tens, Ones,ENCODER1,ENCODER2, LeftL, LeftH, disp_encoders,RightL,RightH,PoleL,PoleH
     global	IRState, B1L,B1H,B1S,B2L,B2H,B2S,B3L,B3H,B3S,B4L,B4H,B4S,B5L,B5H,B5S,B6L,B6H,B6S,B7L,B7H,B7S, Disp_Number,dispPING,BinNum,PoleLocH,PoleLocL
+    global	ultrastate,ultra1,ultra2,ultra3,ultra4,ultralol
 ;ADC is a blocking subroutine, in that it involves slightly longer delays 
 ADC	movlw	B'00000001'	;configure ADCON0 for AN0 input (RA0)
+	banksel	direction
 	btfsc	direction, 0
 	movlw	B'00000101'	;Configure for AN1 (RA1) if direction reversed 
      	movwf	ADCON0		
@@ -104,7 +112,7 @@ Ultrasound
 dispPING	
 	
 	movff	PoleL,NumL
-	movff	PoleH,NumH
+	clrf	NumH
 	call	bin16_BCD	;convert the previous values to BCD notation
 	call	Disp_Number
 	return
@@ -112,7 +120,15 @@ dispPING
 PING	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
 	delay	0x2
 	bcf	TRIG
+	;clrf	PoleL
+	;rollingavg  ultra4,PoleL
+	;rollingavg  ultra3,PoleL
+	;rollingavg  ultra2,PoleL
+	;rollingavg  ultra1,PoleL
+	
+
 	return
+	
 	
 	clrf	TMR0H
 	clrf	TMR0L		;clear register and prescaler
@@ -123,15 +139,13 @@ PING	bsf	TRIG		;delay 0x2 gives 15 us approximately at 8Mhz
 	btfsc	ECHO
 	bra	$-2		;wait for echo to go back low
 	
-	bcf	T0CON,7		;disable timer
-	movf	TMR0L,W
-	movwf	PoleL
-	movf	TMR0H,W
-	movwf	PoleH
+	bcf	T0CON,7		;disable timer	
 	
 	return
 	
-DIST	btfss	ECHO	;if RB4 is high, reset and start timer 3
+DIST	
+	banksel	PoleL
+	btfss	ECHO	;if RB4 is high, reset and start timer 3
 	goto	echo_b
 echo_a	clrf	TMR0H
 	clrf	TMR0L		;clear register and prescaler
@@ -139,17 +153,42 @@ echo_a	clrf	TMR0H
 	bcf	INTCON,0	;reset interrupt vector 
 	retfie	1
 echo_b	bcf	T0CON,7		;disable timer
-	movf	TMR0L,W
-	movwf	PoleL
-	movf	TMR0H,W
-	movwf	PoleH
-		
+	movff	TMR0L,PoleL
+	bra	echo_end
+	
+	movlf	.4,comparetemp
+	cpfsne  comparetemp,ultrastate
+	movff	TMR0L,ultra4
+	
+	movlf	.3,comparetemp
+	cpfsne  comparetemp,ultrastate
+	movff	TMR0L,ultra3
+	
+	movlf	.2,comparetemp
+	cpfsne  comparetemp,ultrastate
+	movff	TMR0L,ultra2
+	
+	movlf	.1,comparetemp
+	cpfsne  comparetemp,ultrastate
+	movff	TMR0L,ultra1
+	
+	decfsz	ultrastate
+	bra	echo_end
+	movlf	.2,ultrastate	;when ultrastate = 0 , make it 4.
+	
+	
+	;movf	TMR0L,W
+	;movwf	PoleL
+	;movf	TMR0H,W
+	;movwf	PoleH
+echo_end		
 	bcf	INTCON,0	;reset interrupt vector
 	retfie	1			;return from interrupt
 	
 
 	
 ENCODER1
+	banksel	RightL
 	btfss	RComp		;check direction of encoder
 	goto	for
 	goto	back
@@ -165,6 +204,7 @@ transf	bcf	INTCON,1	;reset flag bit
 	retfie	1
 	
 ENCODER2
+	banksel	RightL
 	btfss	LComp		;check direction of encoder. directions reversed
 	goto	for2
 	goto	back2

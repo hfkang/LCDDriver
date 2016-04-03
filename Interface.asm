@@ -28,7 +28,7 @@
 		org 0x18	;low priority (ultrasonic ping)
 		retfie
 		
-	udata
+main_bank	udata
 CurrBin		res 1
 TotBin		res 1
 threshL		res 1
@@ -63,7 +63,8 @@ mypidOut2	res 1
 mypidStat1	res 1
 	
 updates		res 1
-	
+encThreshL	res 1
+encThreshH	res 1
 		
 MAIN CODE 
     global	    ErrorState,threshL,threshH,mypidStat1,mypidOut0,mypidOut1,mypidOut2
@@ -77,6 +78,8 @@ isr
 	call	ENCODER2,   1	 ;encoder 2 is on left side 
 	btfsc	PIR1,	    TMR1IF				
 	call	PidInterrupt
+	btfsc	T3FLAG
+	call	STEP
 	retfie
 	
 Start_Msg
@@ -199,7 +202,11 @@ start
     clrf	B7S
     clrf	armState
     movlf	0xFF,PoleL	;stop premature beeping on the first run 
-    
+    movlf	0xFF,ultra4
+    movlf	0xFF,ultra3
+    movlf	0xFF,ultra2
+    movlf	0xFF,ultra1
+    movlf	.4,ultrastate
      
     movlw	B'00001101'	;configure ADCON1, Analog in for RA0, RA1  
     movwf	ADCON1		
@@ -209,6 +216,14 @@ start
     
     movlw	B'01000111'	;Configure Timer0 for distance measurement, 1 for CPP
     movwf	T0CON		;8bit prescaler from Fosc/4 in 16 bit mode 
+    
+    movlf	B'10110000',T3CON
+    bcf		T3ENABLE
+    bcf		T3INTENABLE
+    bcf		T3FLAG
+    
+
+    
     delay	0x50		;wait for LCD to initialie 
     call	LCD_INIT     
     call        ConfigureI2C            ; Configures I2C for RTC
@@ -232,8 +247,12 @@ start
     ;goto	move4m
     ;call	REVERSE
     ;goto	irtesting
-    goto	testPID
+    ;goto	testPID
+    ;goto	ploop
     
+    
+    
+    banksel	RightH
     dispText	Start_Msg,first_line
     lcdNewLine
     call	RTCDisplayTimeDate	;display time and date on screen 
@@ -243,37 +262,53 @@ start
     call        ReadFromRTC
     movff       rtc_sec, start_time_sec	;store begin time for elapsed trial time
     movff       rtc_min, start_time_min
-    startPWM
-    reset_encoders
+    ;call	testPID			;intializes our run
     ;*************************************************************************
     ;
     ;		    BEGIN MAIN OPERATION LOOP (forward dir)
     ;
     ;*************************************************************************
 Main_loop    
+    banksel	RightH
+    
     movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got 
     cpfslt	PoleL		    ;can convert to 16 bit if necessary 
     goto	_pid		
     bsf		BUZZER		
-    encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the sticker
-    call	PING
-    lcdClear			
-_myadc				
-    call	ADC		    ;check ADC value 
-    dispText	IRMsg,first_line    
-    disp16	ADRESH,ADRESL
     
-    movlw	DISTTHRESH
-    cpfslt	PoleL
+    movff	    RightH,encThreshH
+    movff	    RightL,encThreshL
+    add16	    encThreshH,encThreshL,IRBinScanOffset	;offset should be a literal (constant)
     
-    goto	_pol
-    goto	_bin
+checkifpole    
+    movlw	    DISTTHRESH	     
+    cpfslt	    PoleL
+    bra		    _pol
+    bra		    continuecheck
+
+continuecheck
+    
+    call	    PID
+    call	    PING
+    
+    enccomp16	    RightH,RightL,_myadc,checkifpole,_myadc
+    ;encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the sticker
+    ;call	PING
+    			
+   
 _pol				;we know a pole is here
     dispText	PoleDetected,second_line
     movff	RightL,PoleLocL	
     movff	RightH,PoleLocH	
-    call	SuperDelay  
+    sub16	PoleLocH,PoleLocL,IRBinScanOffset
     goto	_pid	    
+    
+_myadc
+    lcdClear				
+    call	ADC		    ;check ADC value 
+    dispText	IRMsg,first_line    
+    disp16	ADRESH,ADRESL
+    
 _bin				;we know a bin is here! now go to where sticker is 
     dispText	BinDetected,second_line
     incf	CurrBin
@@ -281,12 +316,14 @@ _bin				;we know a bin is here! now go to where sticker is
     movlf	WHITEH,threshH
     movlf	WHITEL,threshL
     comp16	ADRESH,ADRESL,Bl,Wh,Wh
+    
 Bl  
     movf	CurrBin,W
     storeBin	WREG, 0, 0	;store frontside, black
     lcdClear
     dispText	isBlack,second_line
     encOffset	BinHalfway
+    resetrolling
     goto	_pid
 Wh  
     movf	CurrBin,W
@@ -294,10 +331,12 @@ Wh
     lcdClear
     dispText	isWhite,second_line
     encOffset	BinHalfway
+    resetrolling
     goto	_pid
     
 
 _pid
+    banksel	CurrBin
     call	PING
     bcf		BUZZER
     startPWM
@@ -307,17 +346,26 @@ _pid
     cpfslt	CurrBin		
     goto	_rev		;go to reverse process if we've reached 7 bins
     
-    
+    ;decfsz	updates
+    ;bra		checkdistance
+    ;movlf	0xFF,updates
     lcdHomeLine
     call	disp_encoders
     lcdNewLine
     call	dispPING
-    
     ;movlf	0x06,threshH
     ;movlf	0x1D,threshL
-    movlf	0x03,threshH
-    movlf	0x0E,threshL
-    comp16	RightH,RightL,_rev,Main_loop,Main_loop
+    
+checkdistance
+    
+    movlf	0x01,threshH
+    movlf	0x98,threshL
+    comp16	RightH,RightL,mayberev,Main_loop,Main_loop
+    
+mayberev 
+    btfsc	RightH,7
+    goto	Main_loop
+    
     ;comp16	RightH,RightL,Finish,Main_loop,Main_loop
     
     ;**************************************************************************
@@ -369,35 +417,37 @@ Back_loop
     cpfslt	PoleL		    ;can convert to 16 bit if necessary 
     goto	_pid2
     bsf		BUZZER    
-    encOffset 	IRBinScanOffset	;this makes the robot keep moving until it reaches this many encoder ticks. The only thing that can trip this should be the bins. Never pole
     lcdClear
-    
 _bin2				;we know a bin is here! now we wait
     dispText	BinDetected,second_line
     decf	CurrBin
-    encOffset 	IRStickerScanOffset	
+    encOffset 	IRBinScanOffset	
     call	ADC		;check adc again
     movlf	WHITEH,threshH
     movlf	WHITEL,threshL
+    sub16	threshH,threshL,SensorDelta  
     comp16	ADRESH,ADRESL,Bl2,Wh2,Wh2
 
 Bl2 movf	CurrBin,W
     storeBin	WREG, 1, 0	;store frontside, black
     dispText	isBlack,second_line
     encOffset	BinHalfway
+    resetrolling
     bra		_pid2
     
 Wh2  movf	CurrBin,W
     storeBin	WREG, 1, 1	;store frontside, white	
     dispText	isWhite,second_line
     encOffset	BinHalfway
+    resetrolling
     bra		_pid2
     
 
 _pid2
     call	PING
     bcf		BUZZER
-    ;call	PID		;adjust motor output speeds  
+    call	PID		;adjust motor output speeds  
+    
     movff	PoleLocH,threshH
     movff	PoleLocL,threshL
     add16	threshH,threshL,poleOffset	;trigger to dodge pole
@@ -420,7 +470,7 @@ retractarm
     bsf		retracted
     clrf	threshH
     movlf	0x05,threshL
-    comp16	stepsH,stepsL,_ra,_pid2,_pid2			;only go through with stepper actuation if necessary 
+    comp16	stepsH,stepsL,_ra,_pid2,_pid2	    		;only go through with stepper actuation if necessary 
 _ra    
     bcf		STEP_ENABLE
     bcf		STEPDIR
@@ -485,11 +535,39 @@ Disp_Data				;show results
     stopPWM
     dispText	Data_Prompt,first_line
     call	READ_KEYPAD		;gets requested container from user
+disp_again    
     movwf	keypress		;store value in register
     
+    movlw	0x03
+    cpfseq	keypress
+    bra		$+4
+    bra		Disp_Data
+    movlw	0x07
+    cpfseq	keypress
+    bra		$+4
+    bra		Disp_Data
+    movlw	0x08
+    cpfsgt	keypress
+    bra		valid_key
+    bra		Disp_Data
 
-    lcdClear
+valid_key
+    
+    movlw	0x07
+    cpfslt	keypress
+    decf	keypress
+    
+    movlw	0x03
+    cpfsgt	keypress
     incf	keypress
+    
+    movf	TotBin,W
+    cpfsgt	keypress
+    bra		show_bin
+    bra		Disp_Data
+    
+show_bin    
+    lcdClear
     decf	keypress		
     bz		Container1
     decf	keypress
@@ -497,15 +575,14 @@ Disp_Data				;show results
     decf	keypress
     bz		Container3
     decf	keypress
-    decf	keypress
     bz		Container4
     decf	keypress
     bz		Container5
     decf	keypress
     bz		Container6
     decf	keypress
-    decf	keypress
     bz		Container7
+    
 Container1         readTable    Cont1
                    call                 DISP_TEXT
                    movff                B1L,NumL
@@ -513,7 +590,7 @@ Container1         readTable    Cont1
                    call                 convertEncoder
                    movff                B1S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container2         readTable    Cont2
                    call                 DISP_TEXT
                    movff                B2L,NumL
@@ -521,7 +598,7 @@ Container2         readTable    Cont2
                    call                 convertEncoder
                    movff                B2S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container3         readTable    Cont3
                    call                 DISP_TEXT
                    movff                B3L,NumL
@@ -529,7 +606,7 @@ Container3         readTable    Cont3
                    call                 convertEncoder
                    movff                B3S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container4         readTable    Cont4
                    call                 DISP_TEXT
                    movff                B4L,NumL
@@ -537,7 +614,7 @@ Container4         readTable    Cont4
                    call                 convertEncoder
                    movff                B4S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container5         readTable    Cont5
                    call                 DISP_TEXT
                    movff                B5L,NumL
@@ -545,7 +622,7 @@ Container5         readTable    Cont5
                    call                 convertEncoder
                    movff                B5S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container6         readTable    Cont6
                    call                 DISP_TEXT
                    movff                B6L,NumL
@@ -553,7 +630,7 @@ Container6         readTable    Cont6
                    call                 convertEncoder
                    movff                B6S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
 Container7         readTable    Cont7
                    call                 DISP_TEXT
                    movff                B7L,NumL
@@ -561,7 +638,7 @@ Container7         readTable    Cont7
                    call                 convertEncoder
                    movff                B7S,binstate
                    call                 stick_disp
-                   goto                 Disp_Data
+                   goto                 disp_again
     
     
 Stop	bra 	Stop	
@@ -665,6 +742,7 @@ loop4m	lcdHomeLine
         call	    convertEncoder
 	
 	lcdNewLine
+	
 	call	PING		    ;check the ultrasonic now. 
 	call	dispPING    
 	bcf	BUZZER
@@ -775,12 +853,16 @@ irtestloop
     
 ultratest
     lcdClear
-    dispText	Ultrasound,second_line
+    ;dispText	Ultrasound,second_line
     
 ultraloop
     lcdHomeLine
     call	PING		    ;check the ultrasonic now. 
     call	dispPING    
+    lcdNewLine
+    call	disp_encoders
+    bra		ultraloop 
+    
     bcf		BUZZER
     movlw	0xA
     cpfslt	PoleL
@@ -936,10 +1018,11 @@ testPID
 	call	SuperDelay
 	call	SuperDelay
 	call	SuperDelay
-	resetencoders
+	reset_encoders
 	call	PID
 	startPWM
 	movlf	D'255',updates
+	return 
 ploop	
 	call		PID
 	banksel		RightH

@@ -18,8 +18,8 @@
 
 #define	SENSOR_DELAY	    0XFF	;delay for reading in the sensor after a ping event 
 #define	STICKER_DELAY	    0xFF
-#define	IRBinScanOffset	    D'70'    	;4cm in encoder ticks 
-#define IRStickerScanOffset 0x00
+#define	IRBinScanOffset	    D'70'   
+#define	poleAvoid	    D'60'
 #define BinHalfway	    D'50'	;get away from bin!
 
 #define FIR	PORTA,0
@@ -29,9 +29,12 @@
 #define	RComp	PORTC,6		;CHANGE LATER to proper port. 
 #define	LComp	PORTC,7		;temporary. currently complifts with ultrasound
 #define	WHITEH	0x02
-#define WHITEL	0x58
-#define	BINH	0x02
-#define BINL	0xB3
+#define WHITEL	0xD5
+#define	SensorDelta D'50'
+#define	T3Flag	PIR2,1
+
+;#define	BINH	0x02
+;#define BINL	0xB3
 
 #define	DISTTHRESH	D'10'	;trigger for ultrasonic sensor 
 
@@ -66,11 +69,13 @@
 #define	STEPPER_SPEED	0x25
 #define	POLE_SPEED	0x25
 #define poleOffset	0xAA		;about one full wheel rev (22cm)
-;#define	poleOffset	0x10
 #define	armStepH	0x09
 #define armStepL	0x5F
 #define	retracted	armState,0
 #define	extended	armState,1
+#define	T3ENABLE	T3CON,0
+#define	T3FLAG		PIR2,1
+#define	T3INTENABLE	PIE2,1
 
 
 

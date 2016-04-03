@@ -92,6 +92,7 @@ forceLeft
 	bra	    pid_end
 	
 pid_end:
+	banksel	    mypidStat1
 	return 
 	
 	
@@ -275,8 +276,12 @@ FORWARD
 
        
 STEPPER
+	banksel		delay1
 	bsf		STEP
 	delay		0x2		;gives 15 us delay 
 	bcf		STEP
-	return
+	
+	bcf		T3FLAG
+	retfie
+	
 	end

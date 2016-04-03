@@ -191,7 +191,7 @@ disp16bit macro high, low
 ;This macro does a 16 bit comaprison operation, and branches depending on how the values turn out
 comp16 macro varH,varL,gotoHigh,gotoLow,gotoEq
 	local	    _geeq,_eq,_geeqlow
-	banksel	    varH
+	banksel	    threshH
 	movf	    threshH,W
 	cpfslt	    varH   
 	bra	    _geeq	    ;since varH >= threshH, go to high method
@@ -211,6 +211,28 @@ _geeqlow
 	goto	    gotoEq	    ;both registers are totally equal 
 	endm
 	
+enccomp16 macro varH,varL,gotoHigh,gotoLow,gotoEq
+	local	    _geeq,_eq,_geeqlow
+	banksel	    varH
+	movf	    encThreshH,W
+	cpfslt	    varH   
+	bra	    _geeq	    ;since varH >= threshH, go to high method
+	goto	    gotoLow	    ;definitely lower
+
+_geeq
+	cpfseq	    varH
+	goto	    gotoHigh	    ;definitely higher
+_eq
+	movf	    encThreshL,W
+	cpfslt	    varL	    ;high bits are equal, idk about low bits
+	bra	    _geeqlow	    ;high bits are equal, but lower bit is higher or equal
+	goto	    gotoLow	    ;high was equal, but lower is low
+_geeqlow
+	cpfseq	    varL
+	goto	    gotoHigh	    ;lower register is higher than threshold
+	goto	    gotoEq	    ;both registers are totally equal 
+	endm
+	
 disp16 macro high,low	
     movff	low,NumL
     movff	high,NumH
@@ -220,6 +242,7 @@ disp16 macro high,low
     
     
 add16 macro fileH,fileL,operand
+	banksel	    fileH
 	movlw	    operand
 	addwf	    fileL,F
 	btfsc	    STATUS,C
@@ -227,6 +250,7 @@ add16 macro fileH,fileL,operand
 	endm
 
 sub16	macro fileH,fileL,operand
+	banksel	    fileH
 	movlw	    operand 
 	subwf	    fileL,F
 	btfss	    STATUS,C
@@ -241,21 +265,23 @@ movlf   macro   literal, register
 	
 encOffset macro	    offset
 	local	    _add,_sub,_fin,_add1,_sub1
-	
-	movff	    RightH,threshH
-	movff	    RightL,threshL
+	banksel	    encThreshH
+	movff	    RightH,encThreshH
+	movff	    RightL,encThreshL
 	btfsc	    direction,0		;add if forward, subtract if backward
 	bra	    _sub		;subtract because its set, & not skipped
-_add	add16	    threshH,threshL,offset	;offset should be a literal (constant)
+_add	add16	    encThreshH,encThreshL,offset	;offset should be a literal (constant)
 _add1	call	    PID
+	banksel	    threshH
 	lcdHomeLine
 	call	    disp_encoders
-	comp16	    RightH,RightL,_fin,_add1,_add1
-_sub	sub16	    threshH,threshL,offset
+	enccomp16	    RightH,RightL,_fin,_add1,_add1
+_sub	sub16	    encThreshH,encThreshL,offset
 _sub1	call	    PID
+	banksel	    threshH
 	lcdHomeLine
 	call	    disp_encoders
-	comp16	    RightH,RightL,_sub1,_fin,_sub1
+	enccomp16	    RightH,RightL,_sub1,_fin,_sub1
 _fin	
 	endm
 	
@@ -270,13 +296,39 @@ rtc_disp    macro   rtc_data
 divby8	macro reg
 	rlncf	reg
 	rlncf	reg
-	
 	;rrncf	reg
 	;bcf	reg,7
 	;bcf	reg,6
 	nop
 	endm
 
+divby4	macro	reg
+	rrncf	reg
+	;rrncf	reg
+	bcf	reg,7
+	;bcf	reg,6
+	endm
+	
+resetrolling macro
+	movlf	0xFF,ultra1
+	movlf	0xFF,ultra2
+	movlf	0xFF,ultra3
+	movlf	0xFF,ultra4
+	endm
+	
+rollingavg macro reg,dest
+ 	movff	reg,comparetemp
+	divby4  comparetemp
+	movf	comparetemp,w
+	addwf	dest
+	endm
+
+cpfsne	  macro   f1,f2
+          movf    f2,w
+          subwf   f1,w
+          btfsc   STATUS,Z
+          endm	
+	
 i2c_start       macro
         bsf     SSPCON2, SEN
         call    CheckI2C
