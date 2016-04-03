@@ -270,15 +270,15 @@ stopStepperMotor macro
     
 extendStepper macro
     bsf	    STEPDIR
-    bsf	    T3ENABLE
-    bsf	    T3INTENABLE
+    ;bsf	    T3ENABLE
+    ;bsf	    T3INTENABLE
     bcf	    STEP_ENABLE
     endm
 
 retractStepper macro
     bcf	    STEPDIR
-    bsf	    T3ENABLE
-    bsf	    T3INTENABLE
+    ;bsf	    T3ENABLE
+    ;bsf	    T3INTENABLE
     bsf	    STEP_ENABLE
     endm
 

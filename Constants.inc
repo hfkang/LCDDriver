@@ -63,7 +63,7 @@
 #define	RightConfig	CCP2CON
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
-#define	StepDelay	0x05
+#define	StepDelay	0x09
 
 #define	STEPPER_SPEED	0xFE
 #define STEPPER_SPEEDL	0xD0

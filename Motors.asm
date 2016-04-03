@@ -247,10 +247,7 @@ leftneg
     
 REVERSE
 	stopPWM	
-	delay	    0xFF
-	delay	    0xFF
-	delay	    0xFF
-	delay	    0xFF
+	delay	    0x80
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
 	;bsf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
@@ -262,10 +259,7 @@ REVERSE
 
 FORWARD
 	stopPWM	
-	delay	    0xFF
-	delay	    0xFF
-	delay	    0xFF
-	delay	    0xFF
+	delay	    0x80
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
 	;bcf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
@@ -278,14 +272,14 @@ FORWARD
        
 STEPPER
 	banksel		direction
-	movwf		tempwreg
+	;movwf		tempwreg
 	
 	bsf		STEP
 	delay		0x2		;gives 15 us delay 
 	bcf		STEP
 	
-	movlf		STEPPER_SPEED,TMR3H
-	movlf		STEPPER_SPEEDL,TMR3L
+	;movlf		STEPPER_SPEED,TMR3H
+	;movlf		STEPPER_SPEEDL,TMR3L
 	
 	;sub16		stepsH,stepsL,1
 	;movlw		0x00
@@ -295,8 +289,8 @@ STEPPER
 	;bra		fin_stepper
 	;stopStepperMotor
 fin_stepper
-	bcf		T3FLAG
-	movf		tempwreg,W
-	retfie
+	;bcf		T3FLAG
+	;movf		tempwreg,W
+	return
 	
 	end

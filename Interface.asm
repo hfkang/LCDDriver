@@ -78,8 +78,8 @@ isr
 	call	ENCODER2,   1	 ;encoder 2 is on left side 
 	btfsc	PIR1,	    TMR1IF				
 	call	PidInterrupt
-	btfsc	T3FLAG
-	call	STEPPER
+	;btfsc	T3FLAG
+	;call	STEPPER
 	retfie
 	
 Start_Msg
@@ -245,7 +245,7 @@ start
     bcf		RightMotor
     call	PidInitalize		;initialize PID variables 
     
-
+    goto	_rev
     ;call	ss 
     ;goto	fivesteps
     ;goto	testAN937
@@ -396,8 +396,8 @@ _rev
     
 extend
     delay		StepDelay
+    call		STEPPER
     sub16		stepsH,stepsL,1
-    
     clrf		threshH
     movlf		0x05,threshL
     comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
@@ -481,7 +481,7 @@ retractarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ra,_pid2,_pid2	    		;only go through with stepper actuation if necessary 
 _ra    
-    retractStepper
+    call	STEPPER
     bra		_pid2
     
 extendarm   
@@ -494,7 +494,7 @@ extendarm
     movlf	0x05,threshL
     comp16	stepsH,stepsL,_ea,_pid2,_pid2
 _ea    
-    extendStepper
+    call	STEPPER
     bra		_pid2
     
 nopole    
