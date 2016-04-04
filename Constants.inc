@@ -69,7 +69,9 @@
 #define STEPPER_SPEEDL	0xD0
 
 #define	POLE_SPEED	0x25
-#define poleOffset	0xAA		;about one full wheel rev (22cm)
+#define poleOffset	D'75'		;about one full wheel rev (22cm)
+#define poleRangeOffset	D'90'
+#define	poleExtendOffset    D'70'
 #define	armStepH	0x09
 #define armStepL	0x5F
 #define	retracted	armState,0

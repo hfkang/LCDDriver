@@ -160,6 +160,9 @@ stopPWM macro
 	mask_bits   CCP1CON, 0x0F
 	movlw	    0x00
 	mask_bits   CCP2CON, 0x0F
+	
+	bcf	    LeftMotor
+	bcf	    RightMotor
 	endm
 	
 startPWM macro
@@ -279,7 +282,7 @@ retractStepper macro
     bcf	    STEPDIR
     ;bsf	    T3ENABLE
     ;bsf	    T3INTENABLE
-    bsf	    STEP_ENABLE
+    bcf	    STEP_ENABLE
     endm
 
 	

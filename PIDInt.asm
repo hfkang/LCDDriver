@@ -248,7 +248,7 @@ PidInitalize:
 	clrf	BARGB1
 	clrf	BARGB2
 				
-	movlw	.58        					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
+	movlw	.45       					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
 	movwf	kp						;Enter the PID gains scaled by a factor of 16, max = 255
 
 	movlw	.160					;10 x 16
@@ -320,6 +320,9 @@ PidMain:
 	bra		call_pid_terms		;NO, start proportional term
 	bsf		pidStat1,err_z		;YES, set error zero flag
 	;bsf		PIE1,TMR1IE			;enable T1 interrupt
+	clrf	pidOut0
+	clrf	pidOut1
+	clrf	pidOut2
 	banksel RightH			;return to original bank
 	return						;return back to the main application code
 	

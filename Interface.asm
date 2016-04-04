@@ -241,11 +241,15 @@ start
     bcf		RightDirection
     call	CONFIG_PWM	
     stopPWM
+    
+    ;btfss	KEYPAD_DA
+    ;bra		$-2
+    
     bcf		LeftMotor
     bcf		RightMotor
     call	PidInitalize		;initialize PID variables 
     
-    goto	_rev
+    ;goto	_rev
     ;call	ss 
     ;goto	fivesteps
     ;goto	testAN937
@@ -257,7 +261,7 @@ start
     ;goto	move4m
     ;call	REVERSE
     ;goto	irtesting
-    ;goto	testPID
+    goto	testPID
     ;goto	ploop
     
     
@@ -376,7 +380,6 @@ mayberev
     btfsc	RightH,7
     goto	Main_loop
     
-    ;comp16	RightH,RightL,Finish,Main_loop,Main_loop
     
     ;**************************************************************************
     ;
@@ -420,12 +423,84 @@ stahp_extend
     ;
     ;**************************************************************************
 Back_loop   
+    
+_pid2
+    stopStepperMotor
+    startPWM
+    call	PING
+    bcf		BUZZER
+    call	PID		;adjust motor output speeds  
+    
+    movff	PoleLocH,threshH
+    movff	PoleLocL,threshL
+    add16	threshH,threshL,poleOffset	;trigger to dodge pole
+    comp16	RightH,RightL,nopole,checkloc,checkloc
+    
+checkloc
+    movff	PoleLocH,threshH
+    movff	PoleLocL,threshL
+    sub16	threshH,threshL,poleRangeOffset
+    comp16	RightH,RightL,nearpole,nopole,nopole	;checks if we already passed the pole
+    
+nearpole
+    movff	PoleLocH,threshH
+    movff	PoleLocL,threshL
+    sub16	threshH,threshL,poleExtendOffset
+    comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
+
+retractarm
+    stopPWM
+    dispText	RetractingArm,first_line
+    btfsc	retracted
+    bra		_pid2
+    call	loadsteps
+    bsf		retracted
+    retractStepper
+_ra    
+    delay		StepDelay
+    call		STEPPER
+    sub16		stepsH,stepsL,1
+    clrf		threshH
+    movlf		0x05,threshL
+    comp16		stepsH,stepsL,extend,_pid2,_pid2
+    
+extendarm   
+    stopPWM
+    dispText	ExtendingArm,first_line
+    btfsc	extended
+    bra		_pid2
+    call	loadsteps
+    bsf		extended
+    extendStepper
+_ea       
+    delay		StepDelay
+    call		STEPPER
+    sub16		stepsH,stepsL,1
+    clrf	threshH
+    movlf	0x05,threshL
+    comp16	stepsH,stepsL,_ea,_pid2,_pid2
+
+    
+nopole    
+    stopStepperMotor
+    lcdHomeLine
+    call	disp_encoders
+    lcdNewLine
+    call	dispPING
+        
     movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got
-    cpfslt	PoleL		    ;can convert to 16 bit if necessary 
-    goto	_pid2
+    cpfsgt	PoleL		    ;can convert to 16 bit if necessary 
+    goto	_bin2
+    
+    movlf	0x00,threshH
+    movlf	0x05,threshL
+    comp16	RightH,RightL,Back_loop,Finish,Finish
+    
+
+    
+_bin2
     bsf		BUZZER    
-    lcdClear
-_bin2				;we know a bin is here! now we wait
+    lcdClear				;we know a bin is here! now we wait
     dispText	BinDetected,second_line
     decf	CurrBin
     encOffset 	IRBinScanOffset	
@@ -450,63 +525,7 @@ Wh2  movf	CurrBin,W
     bra		_pid2
     
 
-_pid2
-    call	PING
-    bcf		BUZZER
-    call	PID		;adjust motor output speeds  
-    
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    add16	threshH,threshL,poleOffset	;trigger to dodge pole
-    comp16	RightH,RightL,nopole,checkloc,checkloc
-    
-checkloc
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleOffset
-    comp16	RightH,RightL,nearpole,nopole,nopole	;checks if we already passed the pole
-    
-nearpole
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
 
-retractarm
-    bra		_pid2
-    dispText	RetractingArm,first_line
-    btfss	retracted
-    call	loadsteps
-    bsf		retracted
-    clrf	threshH
-    movlf	0x05,threshL
-    comp16	stepsH,stepsL,_ra,_pid2,_pid2	    		;only go through with stepper actuation if necessary 
-_ra    
-    call	STEPPER
-    bra		_pid2
-    
-extendarm   
-    bra		_pid2
-    dispText	ExtendingArm,first_line
-    btfss	extended
-    call	loadsteps
-    bsf		extended
-    clrf	threshH
-    movlf	0x05,threshL
-    comp16	stepsH,stepsL,_ea,_pid2,_pid2
-_ea    
-    call	STEPPER
-    bra		_pid2
-    
-nopole    
-    stopStepperMotor
-    
-    lcdHomeLine
-    call	disp_encoders
-    lcdNewLine
-    call	dispPING
-    movlf	0x00,threshH
-    movlf	0x05,threshL
-    comp16	RightH,RightL,Back_loop,Finish,Finish
     
         
 
@@ -921,21 +940,16 @@ Off
   
     
 testPWM
-    stopPWM
-    bcf		LATC,1
-    bcf		LATC,2
+    call	FORWARD
+    startPWM
     dispText	FullPower,second_line
     movlf	DutyDefault,RightSpeed
-    bsf		LATC,1
     movlf	DutyDefault,LeftSpeed
-    bsf		LATC,2
 g1  lcdHomeLine
     call	disp_encoders
     btfss	KEYPAD_DA
     bra		g1
 
-    bcf		LATC,1
-    bcf		LATC,2
     
     startPWM
     dispText	PWM1,second_line
@@ -946,7 +960,6 @@ g2  lcdHomeLine
     btfss	KEYPAD_DA
     bra		g2    
     
-    goto	nopwm 
     
     dispText	PWM2,second_line
     movlf	Duty50,RightSpeed
@@ -971,10 +984,9 @@ g4  lcdHomeLine
 nopwm
     
     dispText	Off,second_line
-    stopPWM
     movlf	0x00,RightSpeed
-    call	READ_KEYPAD
     movlf	0x00,LeftSpeed
+    
 g5  lcdHomeLine
     call	disp_encoders
     btfss	KEYPAD_DA
@@ -1022,22 +1034,16 @@ endtest	    bra	    endtest
     ;
     ;**********************************************************************    
 testPID
+	stopPWM
 	lcdClear
 	call	FORWARD
 	stopPWM
-	call	SuperDelay
-	call	SuperDelay
-	call	SuperDelay
-	call	SuperDelay
-	call	SuperDelay
-	call	SuperDelay
-	call	SuperDelay
 	call	SuperDelay
 	reset_encoders
 	call	PID
 	startPWM
 	movlf	D'255',updates
-	return 
+	;return 
 ploop	
 	call		PID
 	banksel		RightH
@@ -1105,10 +1111,7 @@ T0Overflow
     retfie	
     
 SuperDelay
-    delay 0xFF
-    delay 0xFF
-    delay 0xFF
-
+    delay 0x80
     return
     
 testBuzzer

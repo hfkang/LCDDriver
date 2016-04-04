@@ -39,8 +39,8 @@ CONFIG_PWM
 	movwf	    T2CON
 	return 
 	
-PID:	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
-	movlf	    DutyDefault,RightSpeed
+PID:	movlf	    Duty80,LeftSpeed	;reset speeds to be equal
+	movlf	    Duty80,RightSpeed
 	call	    PidMain
 	banksel	    mypidStat1
 
@@ -57,21 +57,17 @@ PID:	movlf	    DutyDefault,LeftSpeed	;reset speeds to be equal
 	call	    turnLeft	   
 	
 	clrf	    threshH
-	movlf	    Duty50,threshL
+	movlf	    DutyDefault,threshL
 	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_normal
 	
 pid_normal:
 	startPWM
 	bra	    pid_end
 	
-pid_overflow:
-	stopPWM
-	bcf	    LeftMotor
-	bcf	    RightMotor
+pid_overflow: 
 	;call	    dispOperationData
 	;call	    dispCorrection
 failure	;bra	    failure
-	
 	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
 	bra	    forceRight
 	btfss	    mypidStat1,pid_sign
@@ -79,17 +75,12 @@ failure	;bra	    failure
 
 forceRight
 	clrf	    RightSpeed
-	movlf	    DutyDefault,LeftSpeed
-	bsf	    LeftMotor
-	bcf	    RightMotor
 	
 	bra	    pid_end
 	
 forceLeft
-	clrf	    LeftSpeed
-	movlf	    DutyDefault,RightSpeed
-	bcf	    LeftMotor
-	bsf	    RightMotor
+	clrf	    LeftSpeed	
+	
 	bra	    pid_end
 	
 pid_end:
@@ -98,12 +89,10 @@ pid_end:
 	
 	
 turnRight:
-	
 	movf	    offset,W
 	subwf	    RightSpeed
-	;movf	    offset,W
-	;addwf	    LeftSpeed
-
+	movf	    offset,W
+	addwf	    LeftSpeed
 	;toggleMotor LeftConfig, disablePWM
 	;bsf	    LeftMotor 
 
@@ -118,7 +107,8 @@ turnLeft:
 	;comf	    mypidOut1
 	;comf	    mypidOut2
 	;add16	    mypidOut1,mypidOut2,1
-	
+	movf	    offset,W
+	addwf	    RightSpeed
 	movf	    offset,W
 	subwf	    LeftSpeed
 
@@ -126,7 +116,7 @@ turnLeft:
 	;bsf	    RightMotor 
 	
 	return
-	
+	    
 
 	
 old_PID
@@ -252,8 +242,8 @@ REVERSE
 	;bsf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
 	bsf	    direction,0		;set direction bit in direction register 
-	bsf	    LeftDirection
-	bsf	    RightDirection
+	bcf	    LeftDirection
+	bcf	    RightDirection
 	startPWM
 	return 
 
@@ -264,8 +254,8 @@ FORWARD
 	;bcf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
 	bcf	    direction,0		;set direction bit in direction register 
-	bcf	    LeftDirection
-	bcf	    RightDirection
+	bsf	    LeftDirection
+	bsf	    RightDirection
 	startPWM 
 	return 
 
