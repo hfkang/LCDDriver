@@ -477,18 +477,7 @@ derivative_zero
 GetPidResult:
 	movff	prop0,AARGB0			;load Prop term & Integral term
 	movff	prop1,AARGB1
-	movff	prop2,AARGB2		
-	
-	bcf	pidStat1,pid_sign
-	btfsc	pidStat1,err_sign
-	bsf	pidStat1,err_sign
-	
-	bra	scale_down
-	
-	
-	
-	
-	
+	movff	prop2,AARGB2			
 	movff	integ0,BARGB0
 	movff	integ1,BARGB1
 	movff	integ2,BARGB2
