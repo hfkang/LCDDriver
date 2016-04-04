@@ -1045,7 +1045,6 @@ testPID
 	movlf	D'255',updates
 	;return 
 ploop	
-	call		PID
 	banksel		RightH
 	decfsz		updates
 	bra		ploop

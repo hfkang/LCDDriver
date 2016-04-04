@@ -2,7 +2,7 @@
     #include <MACROS.inc>
     #include <Constants.inc>
 
-    extern bin16_BCD, direction
+    extern bin16_BCD, direction, PID
     extern LCD_INIT, DELAY_ROUTINE, NIBBLE_LCD, DISP_TEXT, READ_KEYPAD, keypress
     
 main_bank   udata
@@ -201,7 +201,11 @@ for	incf	RightL
 back	decf	RightL
 	btfss	STATUS,C
 	decf	RightH
-transf	bcf	INTCON,1	;reset flag bit
+
+	
+transf	
+	call	PID
+	bcf	INTCON,1	;reset flag bit
 	retfie	1
 	
 ENCODER2
@@ -217,7 +221,10 @@ for2	incf	LeftL
 back2	decf	LeftL
 	btfss	STATUS,C
 	decf	LeftH
-transf2	bcf	INTCON3,1	;reset flag bit
+transf2	
+	call	PID
+	bcf	INTCON3,1	;reset flag bit
+	
 	retfie	1
 	
 	end
