@@ -16,22 +16,24 @@
 main_bank    udata
 offset	    res	    1 
 direction   res	    1
+threshHtemp res	    1
+threshLtemp res	    1
 
     
     code
-    global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction
+    global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction, threshHtemp, threshLtemp
     
 CONFIG_PWM			
 	;movlw	    B'01111111'	;configure PWM Period 
 	movlw	    DutyDefault
 	movwf	    PR2
 	;configure CCP Module #1
-	movlw	    DutyDefault	;configure duty cycle
+	movlw	    LeftDefault	;configure duty cycle
 	movwf	    LeftSpeed
 	movlw	    B'00111100'	;configure duty cycle and RD5 forward, RD7 rev
 	movwf	    CCP1CON		
        ;configure CCP Module #2
-	movlw	    DutyDefault	;configure CCPR2L
+	movlw	    ActualDefault;configure CCPR2L
 	movwf	    RightSpeed
 	movlw	    B'00111100'	;configure CCP2CON
 	movwf	    CCP2CON
@@ -39,8 +41,11 @@ CONFIG_PWM
 	movwf	    T2CON
 	return 
 	
-PID:	movlf	    Duty80,LeftSpeed	;reset speeds to be equal
-	movlf	    Duty80,RightSpeed
+PID:	movff	    threshH,threshHtemp
+	movff	    threshL,threshLtemp
+	
+	movlf	    LeftDefault,LeftSpeed	;reset speeds to be equal
+	movlf	    ActualDefault,RightSpeed
 	call	    PidMain
 	banksel	    mypidStat1
 
@@ -57,17 +62,14 @@ PID:	movlf	    Duty80,LeftSpeed	;reset speeds to be equal
 	call	    turnLeft	   
 	
 	clrf	    threshH
-	movlf	    DutyDefault,threshL
-	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_normal
+	movlf	    ActualDefault,threshL
+	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_overflow
 	
 pid_normal:
 	startPWM
 	bra	    pid_end
 	
 pid_overflow: 
-	;call	    dispOperationData
-	;call	    dispCorrection
-failure	;bra	    failure
 	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
 	bra	    forceRight
 	btfss	    mypidStat1,pid_sign
@@ -75,16 +77,25 @@ failure	;bra	    failure
 
 forceRight
 	clrf	    RightSpeed
-	
+	movlf	    LeftDefault,LeftSpeed
 	bra	    pid_end
 	
 forceLeft
-	clrf	    LeftSpeed	
+	clrf	    threshH
+	movlf	    LeftDefault,threshL
+	comp16	    mypidOut1,mypidOut2,overwriteLeft,continueRight,overwriteLeft
 	
+overwriteLeft
+	clrf	    LeftSpeed
+	
+continueRight
+	movlf	    DutyDefault,RightSpeed
 	bra	    pid_end
 	
 pid_end:
 	banksel	    mypidStat1
+	movff	    threshHtemp,threshH
+	movff	    threshLtemp,threshL
 	return 
 	
 	

@@ -53,7 +53,7 @@ ultrastate  res	    1
 comparetemp res	    1
 ultralol    res	    1
 tempwreg    res	    1
-	    
+
 	    
     code
     global	ADC,PING,DIST, NumH, NumL, TenK, Thou ,Hund, Tens, Ones,ENCODER1,ENCODER2, LeftL, LeftH, disp_encoders,RightL,RightH,PoleL,PoleH

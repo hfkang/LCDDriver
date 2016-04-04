@@ -190,6 +190,14 @@ disp16bit macro high, low
 	call	Disp_Number
 	endm
 	
+enableEncoders macro
+	bsf	INTCON3,INT2IE
+	bsf	INTCON,INT0IE
+	endm
+disableEncoders macro
+    	bcf	INTCON3,INT2IE
+	bcf	INTCON,INT0IE
+	endm
 
 ;This macro does a 16 bit comaprison operation, and branches depending on how the values turn out
 comp16 macro varH,varL,gotoHigh,gotoLow,gotoEq

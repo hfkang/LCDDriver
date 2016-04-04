@@ -157,6 +157,8 @@ start
     movlw	B'11010000'	;Enable edge interrupt for RB2
     movwf	INTCON3
     
+    disableEncoders
+    
     movlf	b'00111111', TRISA
     movlf	b'00011111', TRISB
     movlf	b'11011000', TRISC
@@ -207,6 +209,19 @@ start
     clrf	B7H
     clrf	B7S
     clrf	armState
+    clrf	mypidOut0	
+    clrf	mypidOut1	
+    clrf	mypidOut2	
+    clrf	mypidStat1	
+	
+    clrf	updates		
+    clrf	encThreshL	
+    clrf	encThreshH	
+    
+    clrf	threshHtemp
+    clrf	threshLtemp
+    
+    
     movlf	0xFF,PoleL	;stop premature beeping on the first run 
     movlf	0xFF,ultra4
     movlf	0xFF,ultra3
@@ -230,9 +245,6 @@ start
     bsf		STEPDIR		;forward direction by default
     bsf		STEP_ENABLE	;disable stepper until needed
 
-    
-
-    
     delay	0x10		;wait for LCD to initialie 
     call	LCD_INIT     
     call        ConfigureI2C            ; Configures I2C for RTC
@@ -241,10 +253,7 @@ start
     bcf		RightDirection
     call	CONFIG_PWM	
     stopPWM
-    
-    ;btfss	KEYPAD_DA
-    ;bra		$-2
-    
+        
     bcf		LeftMotor
     bcf		RightMotor
     call	PidInitalize		;initialize PID variables 
@@ -1036,12 +1045,13 @@ endtest	    bra	    endtest
 testPID
 	stopPWM
 	lcdClear
-	call	FORWARD
-	stopPWM
-	call	SuperDelay
+	bcf	    direction,0		;set direction bit in direction register 
+	bsf	    LeftDirection
+	bsf	    RightDirection	
+	call	    SuperDelay
 	reset_encoders
-	call	PID
 	startPWM
+	enableEncoders
 	movlf	D'255',updates
 	;return 
 ploop	
@@ -1050,8 +1060,15 @@ ploop
 	bra		ploop
 	call		dispOperationData
 	movlf		D'255',updates
-	
-	bra		ploop
+	movlf	0x06,threshH
+	movlf	0x18,threshL
+	comp16	RightH,RightL,StopTest,ploop,StopTest
+
+StopTest
+	stopPWM
+	disableEncoders
+	call	dispOperationData
+lolend	bra	lolend
 	
 dispOperationData
 	lcdHomeLine

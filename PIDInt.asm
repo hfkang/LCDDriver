@@ -248,13 +248,13 @@ PidInitalize:
 	clrf	BARGB1
 	clrf	BARGB2
 				
-	movlw	.30       					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
+	movlw	.110       					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
 	movwf	kp						;Enter the PID gains scaled by a factor of 16, max = 255
 
-	movlw	.160					;10 x 16
+	movlw	.0				;10 x 16
 	movwf	ki
 	
-	movlw	.160					;10 x 16
+	movlw	.0					;10 x 16
 	movwf	kd
 	
 	movlw	.10
@@ -477,7 +477,18 @@ derivative_zero
 GetPidResult:
 	movff	prop0,AARGB0			;load Prop term & Integral term
 	movff	prop1,AARGB1
-	movff	prop2,AARGB2			
+	movff	prop2,AARGB2		
+	
+	bcf	pidStat1,pid_sign
+	btfsc	pidStat1,err_sign
+	bsf	pidStat1,err_sign
+	
+	bra	scale_down
+	
+	
+	
+	
+	
 	movff	integ0,BARGB0
 	movff	integ1,BARGB1
 	movff	integ2,BARGB2

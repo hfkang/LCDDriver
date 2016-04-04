@@ -42,7 +42,10 @@
 #define	STEP_EXTEND	0x01
 #define	STEP_RETRACT	0x00
 
-#define DutyDefault	0x40
+#define DutyDefault	0x80
+#define	ActualDefault	Duty50
+#define	LeftDefault	Duty60
+
 #define	DutyMax		0x40
 #define	Duty90		0x3A
 #define	Duty85		.55
@@ -50,8 +53,10 @@
 #define	Duty80		0x35
 #define	Duty75		0x30
 #define	Duty70		0x2C
-#define	Duty50		0x20
+#define	Duty50		0x40
+#define	Duty60		.77
 #define	Duty25		0x10
+#define	Duty30		D'38'
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   
