@@ -18,10 +18,12 @@ threshLtemp res	    1
 ramp	    res	    1
 baseline    res	    1
 rampinterval	res 1
+rampint2    res	    1
+rampstate   res	    1
     
     code
     global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction, threshHtemp, threshLtemp
-    global	ramp, baseline,rampinterval
+    global	ramp, baseline,rampinterval,rampstate
     
 CONFIG_PWM			
 	;movlw	    B'01111111'	;configure PWM Period 
@@ -43,28 +45,36 @@ CONFIG_PWM
 	
 PID:	movff	    threshH,threshHtemp
 	movff	    threshL,threshLtemp
-	
 	movlf	    ActualDefault,baseline	;default baseline = 50% duty cycle
 
+	btfss	    rampstate,0
+	bra	    accelerate
+	bra	    deccelerate
+	
+accelerate 	
 	decfsz	    rampinterval
 	bra	    nexttime
-	
 	movlw	    ActualDefault
 	cpfsgt	    ramp			;increment ramp if we haven't reached setpoint yet
 	incf	    ramp
-	
-	movlf	    0x02,rampinterval
+	movlf	    0x88,rampinterval
+	bra	    nexttime
+
+deccelerate
+	decfsz	    rampinterval
+	bra	    nexttime
+	movlw	    0x02
+	cpfslt	    ramp 
+	decf	    ramp
+	movlf	    0x88,rampinterval
 	
 nexttime	
 	movlw	    ActualDefault
 	cpfsgt	    ramp			;also, use ramped baseline only if necessary 
 	movff	    ramp,baseline
 	
-	
-	
 	movff	    baseline,LeftSpeed	;reset speeds to be equal
 	movff	    baseline,RightSpeed
-	
 	
 	call	    PidMain
 	banksel	    mypidStat1
@@ -119,12 +129,12 @@ reversePIDModeOverflow
 
 forceRight
 	clrf	    RightSpeed
-	movf	    baseline,LeftSpeed
+	movff	    baseline,LeftSpeed
 	bra	    pid_end
 	
 forceLeft
 	clrf	    LeftSpeed
-	movf	    baseline,RightSpeed
+	movff	    baseline,RightSpeed
 	bra	    pid_end
 	
 pid_end:

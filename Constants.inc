@@ -43,21 +43,28 @@
 #define	STEP_RETRACT	0x00
 
 #define DutyDefault	0x80
-#define	ActualDefault	Duty50
+#define	ActualDefault	Duty35
 #define	rampConstant	.180
-#define dutyStart	Duty25
+#define dutyStart	0x00
 
-#define	DutyMax		0x40
+#define	endDistH	0x03
+#define	endDistL	0x18
+#define endRampOffset	.204
+
+
+
 #define	Duty90		0x3A
 #define	Duty85		.55
 #define Duty825		D'53'
-#define	Duty80		0x35
+#define	Duty80		D'102'
 #define	Duty75		0x30
 #define	Duty70		0x2C
 #define	Duty50		0x40
 #define	Duty60		.77
 #define	Duty25		0x10
+#define	Duty35		.44
 #define	Duty30		D'38'
+#define Duty10		0x0C
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   

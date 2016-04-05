@@ -204,9 +204,12 @@ back	decf	RightL
 
 	
 transf	
-	call	PID
+	;call	PID
 	bcf	INTCON,1	;reset flag bit
 	retfie	1
+	
+	
+	
 	
 ENCODER2
 	banksel	RightL
@@ -222,9 +225,8 @@ back2	decf	LeftL
 	btfss	STATUS,C
 	decf	LeftH
 transf2	
-	call	PID
+	;call	PID
 	bcf	INTCON3,1	;reset flag bit
-	
 	retfie	1
 	
 	end

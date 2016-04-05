@@ -213,6 +213,7 @@ start
     clrf	mypidOut1	
     clrf	mypidOut2	
     clrf	mypidStat1	
+    clrf	rampstate
     movlf	0x2, rampinterval
     movlf	ActualDefault,baseline
     movlf	dutyStart,ramp
@@ -1056,26 +1057,37 @@ testPID
 	bsf	    RightDirection	
 	call	    SuperDelay
 	reset_encoders
-	movlf	    dutyStart,ramp
+	call	    rampup
 	startPWM
 	enableEncoders
 	movlf	D'255',updates
 	;return 
 ploop	
 	banksel		RightH
+	call		PID
 	decfsz		updates
 	bra		ploop
 	call		dispOperationData
 	movlf		D'255',updates
-	movlf		0x06,threshH
-	movlf		0x1D,threshL
+
+	movlf		endDistH,threshH
+	movlf		endDistL,threshL
+	sub16		threshH,threshL,endRampOffset
+	comp16		RightH,RightL,slowdown,head_back,slowdown
+slowdown	
+	btfss		rampstate,0
+	call		rampdown
+	
+head_back
+	movlf		endDistH,threshH
+	movlf		endDistL,threshL
 	comp16		RightH,RightL,ReverseTest,ploop,ReverseTest
 	
 ReverseTest
 	disableEncoders
 	stopPWM
 	call		REVERSE
-	movlf		dutyStart,ramp
+	call		rampup
 	startPWM
 	enableEncoders
 ploop2	
@@ -1084,6 +1096,7 @@ ploop2
 	movlf	0xE0,threshL
 	comp16	RightH,RightL,StopTest,disp2,StopTest
 disp2	
+	call		PID
 	decfsz		updates
 	bra		ploop2
 	call		dispOperationData
@@ -1125,8 +1138,17 @@ dispCorrection:
 	call		Disp_Number
 	return		
 	
+
+rampup:
+	bcf	    rampstate,0
+	movlf	    dutyStart,ramp
+	return
 	
-    
+rampdown:
+	bsf	    rampstate,0
+	movlf	    ActualDefault,ramp
+	return 
+	
     ;**********************************************************************
     ;
     ;			Stepper Driver Test 

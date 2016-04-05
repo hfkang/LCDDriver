@@ -3,5 +3,5 @@
     extern	direction,BinNum,RightL,PoleLocL,PoleLocH,PoleL,PoleH,ultrastate,ultra1,ultra2,ultra3,ultra4,ultralol
     extern	AARGB0,AARGB1,AARGB2,AARGB3		
     extern	BARGB0,BARGB1,BARGB2,BARGB3
-    extern	threshHtemp,threshLtemp,ramp,baseline,FXD2416U,rampinterval
+    extern	threshHtemp,threshLtemp,ramp,baseline,FXD2416U,rampinterval,rampstate
     
