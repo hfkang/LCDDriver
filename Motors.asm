@@ -46,6 +46,7 @@ CONFIG_PWM
 PID:	movff	    threshH,threshHtemp
 	movff	    threshL,threshLtemp
 	movlf	    ActualDefault,baseline	;default baseline = 50% duty cycle
+	
 
 	btfss	    rampstate,0
 	bra	    accelerate
@@ -72,7 +73,7 @@ deccelerate
 	movlw	    0x0A
 	cpfslt	    ramp 
 	decf	    ramp
-	movlf	    .100,rampinterval
+	movlf	    .2,rampinterval
 	
 nexttime	
 	movlw	    ActualDefault
@@ -82,9 +83,7 @@ nexttime
 	movff	    baseline,LeftSpeed	;reset speeds to be equal
 	movff	    baseline,RightSpeed
 	
-	movlw	    RightBias
-	addwf	    RightSpeed
-	
+		
 	call	    PidMain
 	banksel	    mypidStat1
 
@@ -302,7 +301,7 @@ leftneg
     
 REVERSE
 	stopPWM	
-	delay	    0x80
+	delay	    0x20
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
 	;bsf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM
@@ -315,7 +314,7 @@ REVERSE
 
 FORWARD
 	stopPWM	
-	delay	    0x80
+	delay	    0x20
 	bcf	    T2CON,2		;stop timer2, and the PWM outputs
 	;bcf	    CCP1CON,7		;change to revserse on full bridge out (RD5)
 	bsf	    T2CON,2		;start timer2, and renable PWM

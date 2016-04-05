@@ -390,7 +390,6 @@ _pid
 check_distance_limits:
 	movlf		endDistH,threshH
 	movlf		endDistL,threshL
-	sub16		threshH,threshL,endRampOffset
 	comp16		RightH,RightL,slowdown,head_back,slowdown
 slowdown	
 	btfsc		RightH,7
@@ -402,6 +401,7 @@ slowdown
 head_back
 	movlf		endDistH,threshH
 	movlf		endDistL,threshL
+	add16		threshH,threshL,endRampOffset
 	comp16		RightH,RightL,mayberev,Main_loop,Main_loop
 	
 mayberev 
@@ -439,7 +439,7 @@ stahp_extend
     call		REVERSE	
     call		rampup
     startPWM
-    call		deslack
+    ;call		deslack
     enableEncoders
     
     
@@ -465,7 +465,7 @@ _pid2
     
     movff	PoleLocH,threshH
     movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleOffset	;trigger to dodge pole
+    add16	threshH,threshL,poleOffset	;trigger to dodge pole
     comp16	RightH,RightL,nopole,checkloc,checkloc
     
 checkloc

@@ -61,6 +61,7 @@
 #define	Duty75		0x30
 #define	Duty70		0x2C
 #define	Duty50		0x40
+#define Duty40		.51
 #define	Duty60		.77
 #define	Duty25		0x10
 #define	Duty35		.44
@@ -80,16 +81,16 @@
 #define	RightConfig	CCP2CON
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
-#define	StepDelay	0x09
+#define	StepDelay	0x0B
 
 #define	STEPPER_SPEED	0xFE
 #define STEPPER_SPEEDL	0xD0
 
 #define	POLE_SPEED	0x25
-#define poleOffset	D'10'		;about one full wheel rev (22cm)
+#define poleOffset	D'5'		;about one full wheel rev (22cm)
 #define poleRangeOffset	D'130'
 #define	poleExtendOffset    D'120'
-#define	armStepH	0x09
+#define	armStepH	0x13
 #define armStepL	0x5F
 #define	retracted	armState,0
 #define	extended	armState,1
