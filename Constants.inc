@@ -44,11 +44,12 @@
 
 #define DutyDefault	0x80
 #define	ActualDefault	Duty35
+#define	RightBias	Duty5
 #define	rampConstant	.180
 #define dutyStart	0x00
 
-#define	endDistH	0x03
-#define	endDistL	0x18
+#define	endDistH	0x06
+#define	endDistL	0x13
 #define endRampOffset	.204
 
 
@@ -65,7 +66,9 @@
 #define	Duty35		.44
 #define	Duty30		D'38'
 #define Duty10		0x0A
+#define Duty7		.9
 #define Duty5		.6
+
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   

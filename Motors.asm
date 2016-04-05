@@ -82,6 +82,9 @@ nexttime
 	movff	    baseline,LeftSpeed	;reset speeds to be equal
 	movff	    baseline,RightSpeed
 	
+	movlw	    RightBias
+	addwf	    RightSpeed
+	
 	call	    PidMain
 	banksel	    mypidStat1
 
