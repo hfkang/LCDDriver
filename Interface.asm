@@ -419,30 +419,7 @@ _rev
     incf		CurrBin	    ;account for decrement offset in code 
     disableEncoders
     stopPWM
-    movlf		armStepH,stepsH
-    movlf		armStepL,stepsL
-    stopPWM
-    dispText		extendarmmsg,first_line
-    extendStepper
-    
-extend
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf		threshH
-    movlf		0x05,threshL
-    comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
-stahp_extend
-    stopStepperMotor
-    
-    call		PING		    ;check the ultrasonic now. 
-    call		REVERSE	
-    call		rampup
-    startPWM
-    call		deslack
-    enableEncoders
-    
-    
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;			    TESTING VARIABLES ASSIGNED HERE
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -459,7 +436,6 @@ Back_loop
 _pid2
     startPWM
     enableEncoders
-    call	PING
     bcf		BUZZER
     call	PID		;adjust motor output speeds  
     
@@ -470,9 +446,6 @@ nopole
     lcdNewLine
     call	dispPING
         
-    movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got
-    cpfsgt	PoleL		    ;can convert to 16 bit if necessary 
-    goto	_bin2
     
     movlf	0xFF,threshH
     movlf	0xE0,threshL
@@ -480,33 +453,7 @@ nopole
     
     
 
-    
-_bin2
-    bsf		BUZZER    
-    lcdClear				;we know a bin is here! now we wait
-    dispText	BinDetected,second_line
-    decf	CurrBin
-    encOffset 	IRBinScanOffset	
-    call	ADC		;check adc again
-    movlf	WHITEH,threshH
-    movlf	WHITEL,threshL
-    sub16	threshH,threshL,SensorDelta  
-    comp16	ADRESH,ADRESL,Bl2,Wh2,Wh2
 
-Bl2 movf	CurrBin,W
-    storeBin	WREG, 1, 0	;store frontside, black
-    dispText	isBlack,second_line
-    encOffset	BinHalfway
-    resetrolling
-    bra		_pid2
-    
-Wh2  movf	CurrBin,W
-    storeBin	WREG, 1, 1	;store frontside, white	
-    dispText	isWhite,second_line
-    encOffset	BinHalfway
-    resetrolling
-    bra		_pid2
-    
 
 
     
