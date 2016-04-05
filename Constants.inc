@@ -43,7 +43,7 @@
 #define	STEP_RETRACT	0x00
 
 #define DutyDefault	0x80
-#define	ActualDefault	Duty35
+#define	ActualDefault	DutyDefault
 #define	RightBias	Duty5
 #define	rampConstant	.180
 #define dutyStart	0x00

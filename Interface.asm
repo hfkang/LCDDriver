@@ -276,6 +276,7 @@ start
     ;goto	irtesting
     ;goto	testPID
     ;goto	ploop
+    goto	DRAG_RACE
     
     
     
@@ -1433,5 +1434,23 @@ SecondDigitMinutesNotNegative
 
 EndGetTimeTaken
         return
-    
+	
+
+DRAG_RACE
+	enableEncoders
+	startPWM
+	resetrolling
+checkpid	
+	call	    PID
+	movlf	    endDistH,threshH
+	movlf	    endDistL,threshL
+	comp16	    RightH,RightL,brake,checkpid,brake
+	
+brake
+	
+	disableEncoders
+	stopPWM
+	
+	goto	    Stop
+
     end
