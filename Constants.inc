@@ -44,7 +44,7 @@
 
 #define DutyDefault	0x80
 #define	ActualDefault	Duty50
-#define	LeftDefault	Duty60
+#define	rampConstant	.180
 
 #define	DutyMax		0x40
 #define	Duty90		0x3A

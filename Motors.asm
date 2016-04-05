@@ -44,7 +44,7 @@ CONFIG_PWM
 PID:	movff	    threshH,threshHtemp
 	movff	    threshL,threshLtemp
 	
-	movlf	    LeftDefault,LeftSpeed	;reset speeds to be equal
+	movlf	    ActualDefault,LeftSpeed	;reset speeds to be equal
 	movlf	    ActualDefault,RightSpeed
 	call	    PidMain
 	banksel	    mypidStat1
@@ -56,11 +56,22 @@ PID:	movff	    threshH,threshHtemp
 	
 	movff	    mypidOut2,offset	
 	
+	btfsc	    direction,0
+	bra	    reversePIDMode
+	
 	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
 	call	    turnRight
 	btfss	    mypidStat1,pid_sign
 	call	    turnLeft	   
+	bra	    checkmagnitude
 	
+reversePIDMode
+	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
+	call	    turnLeft
+	btfss	    mypidStat1,pid_sign
+	call	    turnRight	   
+	
+checkmagnitude
 	clrf	    threshH
 	movlf	    ActualDefault,threshL
 	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_overflow
@@ -70,25 +81,29 @@ pid_normal:
 	bra	    pid_end
 	
 pid_overflow: 
+	btfsc	    direction,0
+	bra	    reversePIDModeOverflow
+	
 	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
 	bra	    forceRight
 	btfss	    mypidStat1,pid_sign
 	bra	    forceLeft	
+	
+reversePIDModeOverflow
+	btfsc	    mypidStat1,pid_sign		;execute positive direction: turn right
+	bra	    forceLeft
+	btfss	    mypidStat1,pid_sign
+	bra	    forceRight
+	
+	
 
 forceRight
 	clrf	    RightSpeed
-	movlf	    LeftDefault,LeftSpeed
+	movlf	    DutyDefault,LeftSpeed
 	bra	    pid_end
 	
 forceLeft
-	clrf	    threshH
-	movlf	    LeftDefault,threshL
-	comp16	    mypidOut1,mypidOut2,overwriteLeft,continueRight,overwriteLeft
-	
-overwriteLeft
 	clrf	    LeftSpeed
-	
-continueRight
 	movlf	    DutyDefault,RightSpeed
 	bra	    pid_end
 	
@@ -255,7 +270,6 @@ REVERSE
 	bsf	    direction,0		;set direction bit in direction register 
 	bcf	    LeftDirection
 	bcf	    RightDirection
-	startPWM
 	return 
 
 FORWARD

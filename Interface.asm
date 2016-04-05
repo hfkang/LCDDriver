@@ -213,6 +213,7 @@ start
     clrf	mypidOut1	
     clrf	mypidOut2	
     clrf	mypidStat1	
+    clrf	ramp
 	
     clrf	updates		
     clrf	encThreshL	
@@ -1050,6 +1051,7 @@ testPID
 	bsf	    RightDirection	
 	call	    SuperDelay
 	reset_encoders
+	movlf	    .100,ramp
 	startPWM
 	enableEncoders
 	movlf	D'255',updates
@@ -1060,15 +1062,42 @@ ploop
 	bra		ploop
 	call		dispOperationData
 	movlf		D'255',updates
-	movlf	0x06,threshH
-	movlf	0x18,threshL
-	comp16	RightH,RightL,StopTest,ploop,StopTest
+	movlf		0x01,threshH
+	movlf		0x99,threshL
+	comp16		RightH,RightL,ReverseTest,ploop,ReverseTest
+	
+ReverseTest
+	
+	disableEncoders
+	stopPWM
+	call		REVERSE
+	movlf		.100,ramp
+	startPWM
+	enableEncoders
+ploop2	
+	banksel		RightH
+	movlf	0xFF,threshH
+	movlf	0xE0,threshL
+	comp16	RightH,RightL,StopTest,disp2,StopTest
+disp2	
+	decfsz		updates
+	bra		ploop2
+	call		dispOperationData
+	movlf		D'255',updates
+	bra		ploop2
+
 
 StopTest
+	bsf		BUZZER
 	stopPWM
 	disableEncoders
 	call	dispOperationData
-lolend	bra	lolend
+	
+	
+lolend	
+	disableEncoders
+	stopPWM
+	bra	lolend
 	
 dispOperationData
 	lcdHomeLine
