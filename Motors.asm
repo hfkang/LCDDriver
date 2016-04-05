@@ -59,9 +59,9 @@ accelerate
 	incf	    ramp
 	
 	btfss	    direction,0
-	movlw	    .100			;FORWARD PASS RAMP UP DELAY
+	movlw	    .2				;FORWARD PASS RAMP UP DELAY
 	btfsc	    direction,0
-	movlw	    .100				;RETURN PASS RAMP UP DELAY
+	movlw	    .2				;RETURN PASS RAMP UP DELAY
 	movwf	    rampinterval 
 	
 	bra	    nexttime

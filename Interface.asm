@@ -274,7 +274,7 @@ start
     ;goto	move4m
     ;call	REVERSE
     ;goto	irtesting
-    goto	testPID
+    ;goto	testPID
     ;goto	ploop
     
     
@@ -289,7 +289,19 @@ start
     call        ReadFromRTC
     movff       rtc_sec, start_time_sec	;store begin time for elapsed trial time
     movff       rtc_min, start_time_min
-    ;call	testPID			;intializes our run
+initialize_motors:
+    stopPWM
+    lcdClear
+    bcf		direction,0		;set direction bit in direction register 
+    bsf		LeftDirection
+    bsf		RightDirection	
+    call	SuperDelay
+    reset_encoders
+    call	rampup
+    enableEncoders
+    startPWM
+    movlf	D'255',updates
+    resetrolling
     ;*************************************************************************
     ;
     ;		    BEGIN MAIN OPERATION LOOP (forward dir)
@@ -310,24 +322,20 @@ Main_loop
 checkifpole    
     movlw	    DISTTHRESH	     
     cpfslt	    PoleL
-    bra		    _pol
-    bra		    continuecheck
+    bra		    _pol		    ;if the ultrasonic reading goes high again within range, we know it was a pole
+    bra		    continuecheck	    ;otherwise, keep checking until we reach where a sticker should be 
 
 continuecheck
-    
     call	    PID
     call	    PING
     
     enccomp16	    RightH,RightL,_myadc,checkifpole,_myadc
-    ;encOffset 	IRBinScanOffset	    ;this makes the robot keep moving until it reaches the sticker
-    ;call	PING
     			
    
 _pol				;we know a pole is here
     dispText	PoleDetected,second_line
     movff	RightL,PoleLocL	
     movff	RightH,PoleLocH	
-    sub16	PoleLocH,PoleLocL,IRBinScanOffset
     goto	_pid	    
     
 _myadc
@@ -367,32 +375,38 @@ _pid
     call	PING
     bcf		BUZZER
     startPWM
-    ;call	PID		;adjust motor output speeds
+    call	PID		;adjust motor output speeds
     
-    movlw	7
-    cpfslt	CurrBin		
-    goto	_rev		;go to reverse process if we've reached 7 bins
-    
-    delay	LCD_DELAY_DURATION
-    
+    ;movlw	7
+    ;cpfslt	CurrBin		
+    ;goto	_rev		;go to reverse process if we've reached 7 bins
+        
     lcdHomeLine
     call	disp_encoders
     lcdNewLine
     call	dispPING
-    
-    ;movlf	0x06,threshH
-    ;movlf	0x1D,threshL
-    
-checkdistance
-    
-    movlf	0x01,threshH
-    movlf	0x98,threshL
-    comp16	RightH,RightL,mayberev,Main_loop,Main_loop
-    
+ 
+       
+check_distance_limits:
+	movlf		endDistH,threshH
+	movlf		endDistL,threshL
+	sub16		threshH,threshL,endRampOffset
+	comp16		RightH,RightL,slowdown,head_back,slowdown
+slowdown	
+	btfsc		RightH,7
+	goto		Main_loop
+	
+	btfss		rampstate,0
+	call		rampdown
+	
+head_back
+	movlf		endDistH,threshH
+	movlf		endDistL,threshL
+	comp16		RightH,RightL,mayberev,Main_loop,Main_loop
+	
 mayberev 
-    btfsc	RightH,7
-    goto	Main_loop
-    
+	btfsc		RightH,7
+	goto		Main_loop
     
     ;**************************************************************************
     ;
@@ -403,6 +417,7 @@ mayberev
 _rev
     banksel		CurrBin
     incf		CurrBin	    ;account for decrement offset in code 
+    disableEncoders
     stopPWM
     movlf		armStepH,stepsH
     movlf		armStepL,stepsL
@@ -419,10 +434,14 @@ extend
     comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
 stahp_extend
     stopStepperMotor
-    call	PING		    ;check the ultrasonic now. 
-    call	REVERSE			;enter reverrse mode 
-    dispText	ReverseMsg,first_line
+    
+    call		PING		    ;check the ultrasonic now. 
+    call		REVERSE	
+    call		rampup
     startPWM
+    call		deslack
+    enableEncoders
+    
     
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;			    TESTING VARIABLES ASSIGNED HERE
@@ -438,8 +457,8 @@ stahp_extend
 Back_loop   
     
 _pid2
-    stopStepperMotor
     startPWM
+    enableEncoders
     call	PING
     bcf		BUZZER
     call	PID		;adjust motor output speeds  
@@ -461,11 +480,12 @@ nearpole
     sub16	threshH,threshL,poleExtendOffset
     comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
 
-retractarm
-    stopPWM
+retractarm							
     dispText	RetractingArm,first_line
     btfsc	retracted
     bra		_pid2
+    stopPWM							;stop the motors
+    disableEncoders
     call	loadsteps
     bsf		retracted
     retractStepper
@@ -478,10 +498,11 @@ _ra
     comp16		stepsH,stepsL,extend,_pid2,_pid2
     
 extendarm   
-    stopPWM
     dispText	ExtendingArm,first_line
     btfsc	extended
     bra		_pid2
+    stopPWM							;stop the motors
+    disableEncoders
     call	loadsteps
     bsf		extended
     extendStepper
@@ -505,9 +526,10 @@ nopole
     cpfsgt	PoleL		    ;can convert to 16 bit if necessary 
     goto	_bin2
     
-    movlf	0x00,threshH
-    movlf	0x05,threshL
-    comp16	RightH,RightL,Back_loop,Finish,Finish
+    movlf	0xFF,threshH
+    movlf	0xE0,threshL
+    comp16	RightH,RightL,Finish,Back_loop,Finish
+    
     
 
     
@@ -549,6 +571,8 @@ Wh2  movf	CurrBin,W
     ;**************************************************************************
 Finish
     stopPWM
+    disableEncoders
+    
     call        ReadFromRTC
     movff       rtc_sec, end_time_sec
     movff       rtc_min, end_time_min
@@ -1050,21 +1074,11 @@ endtest	    bra	    endtest
     ;
     ;**********************************************************************    
 testPID
-initialize_motors:
-	stopPWM
-	lcdClear
-	bcf	    direction,0		;set direction bit in direction register 
-	bsf	    LeftDirection
-	bsf	    RightDirection	
-	call	    SuperDelay
-	reset_encoders
-	call	    rampup
-	startPWM
-	enableEncoders
-	movlf	D'255',updates
+    
 
 	
-ploop	
+	
+ploop	;operation loop
 	banksel		RightH
 	call		PID
 	decfsz		updates
@@ -1072,29 +1086,12 @@ ploop
 	call		dispOperationData
 	movlf		D'255',updates
 	
-check_distance_limits:
+
 	
-	movlf		endDistH,threshH
-	movlf		endDistL,threshL
-	sub16		threshH,threshL,endRampOffset
-	comp16		RightH,RightL,slowdown,head_back,slowdown
-slowdown	
-	btfss		rampstate,0
-	call		rampdown
 	
-head_back
-	movlf		endDistH,threshH
-	movlf		endDistL,threshL
-	comp16		RightH,RightL,ReverseTest,ploop,ReverseTest
 	
 ReverseTest
-	disableEncoders
-	stopPWM
-	call		REVERSE	
-	call		rampup
-	startPWM
-	call		deslack
-	enableEncoders
+
 ploop2	
 	banksel		RightH
 	movlf	0xFF,threshH

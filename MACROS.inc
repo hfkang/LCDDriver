@@ -345,6 +345,7 @@ resetrolling macro
 	movlf	0xFF,ultra2
 	movlf	0xFF,ultra3
 	movlf	0xFF,ultra4
+	movlf	0xFF,PoleL
 	endm
 	
 rollingavg macro reg,dest
