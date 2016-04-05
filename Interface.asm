@@ -1152,10 +1152,9 @@ rampdown:
 	return 
 	
 deslack:
-	return
 	movlf	    Duty5,LeftSpeed
-	movlf	    Duty6,RightSpeed
-	delay	    0x50
+	movlf	    Duty7,RightSpeed
+	delay	    0x40
 	movff	    RightH,LeftH
 	movff	    RightL,LeftL
 	return
