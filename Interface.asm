@@ -419,23 +419,6 @@ _rev
     incf		CurrBin	    ;account for decrement offset in code 
     disableEncoders
     stopPWM
-    movlf		armStepH,stepsH
-    movlf		armStepL,stepsL
-    stopPWM
-    dispText		extendarmmsg,first_line
-    extendStepper
-    
-extend
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf		threshH
-    movlf		0x05,threshL
-    comp16		stepsH,stepsL,extend,stahp_extend,stahp_extend
-stahp_extend
-    stopStepperMotor
-    
-    call		PING		    ;check the ultrasonic now. 
     call		REVERSE	
     call		rampup
     startPWM
@@ -459,107 +442,20 @@ Back_loop
 _pid2
     startPWM
     enableEncoders
-    call	PING
-    bcf		BUZZER
     call	PID		;adjust motor output speeds  
     
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    add16	threshH,threshL,poleOffset	;trigger to dodge pole
-    comp16	RightH,RightL,nopole,checkloc,checkloc
-    
-checkloc
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleRangeOffset
-    comp16	RightH,RightL,nearpole,nopole,nopole	;checks if we already passed the pole
-    
-nearpole
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleExtendOffset
-    comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
-
-retractarm							
-    dispText	RetractingArm,first_line
-    btfsc	retracted
-    bra		_pid2
-    stopPWM							;stop the motors
-    disableEncoders
-    call	loadsteps
-    bsf		retracted
-    retractStepper
-_ra    
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf		threshH
-    movlf		0x05,threshL
-    comp16		stepsH,stepsL,extend,_pid2,_pid2
-    
-extendarm   
-    dispText	ExtendingArm,first_line
-    btfsc	extended
-    bra		_pid2
-    stopPWM							;stop the motors
-    disableEncoders
-    call	loadsteps
-    bsf		extended
-    extendStepper
-_ea       
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf	threshH
-    movlf	0x05,threshL
-    comp16	stepsH,stepsL,_ea,_pid2,_pid2
-
-    
-nopole    
     stopStepperMotor
     lcdHomeLine
     call	disp_encoders
     lcdNewLine
     call	dispPING
         
-    movlw	DISTTHRESH	    ;check the previous ultrasonic reading we got
-    cpfsgt	PoleL		    ;can convert to 16 bit if necessary 
-    goto	_bin2
     
     movlf	0xFF,threshH
     movlf	0xE0,threshL
     comp16	RightH,RightL,Finish,Back_loop,Finish
     
     
-
-    
-_bin2
-    bsf		BUZZER    
-    lcdClear				;we know a bin is here! now we wait
-    dispText	BinDetected,second_line
-    decf	CurrBin
-    encOffset 	IRBinScanOffset	
-    call	ADC		;check adc again
-    movlf	WHITEH,threshH
-    movlf	WHITEL,threshL
-    sub16	threshH,threshL,SensorDelta  
-    comp16	ADRESH,ADRESL,Bl2,Wh2,Wh2
-
-Bl2 movf	CurrBin,W
-    storeBin	WREG, 1, 0	;store frontside, black
-    dispText	isBlack,second_line
-    encOffset	BinHalfway
-    resetrolling
-    bra		_pid2
-    
-Wh2  movf	CurrBin,W
-    storeBin	WREG, 1, 1	;store frontside, white	
-    dispText	isWhite,second_line
-    encOffset	BinHalfway
-    resetrolling
-    bra		_pid2
-    
-
 
     
         
@@ -1153,7 +1049,7 @@ rampdown:
 	
 deslack:
 	movlf	    Duty5,LeftSpeed
-	movlf	    Duty7,RightSpeed
+	movlf	    Duty25,RightSpeed
 	delay	    0x40
 	movff	    RightH,LeftH
 	movff	    RightL,LeftL
