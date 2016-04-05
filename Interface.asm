@@ -1050,6 +1050,7 @@ endtest	    bra	    endtest
     ;
     ;**********************************************************************    
 testPID
+initialize_motors:
 	stopPWM
 	lcdClear
 	bcf	    direction,0		;set direction bit in direction register 
@@ -1061,6 +1062,8 @@ testPID
 	startPWM
 	enableEncoders
 	movlf	D'255',updates
+
+	
 ploop	
 	banksel		RightH
 	call		PID
@@ -1068,7 +1071,9 @@ ploop
 	bra		ploop
 	call		dispOperationData
 	movlf		D'255',updates
-
+	
+check_distance_limits:
+	
 	movlf		endDistH,threshH
 	movlf		endDistL,threshL
 	sub16		threshH,threshL,endRampOffset
