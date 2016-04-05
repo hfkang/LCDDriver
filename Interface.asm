@@ -1153,7 +1153,7 @@ rampdown:
 	
 deslack:
 	movlf	    Duty5,LeftSpeed
-	movlf	    Duty10,RightSpeed
+	movlf	    Duty5,RightSpeed
 	delay	    0x50
 	movff	    RightH,LeftH
 	movff	    RightL,LeftL
