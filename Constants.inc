@@ -69,6 +69,7 @@
 #define Duty10		0x0A
 #define Duty7		.9
 #define Duty5		.6
+#define Duty6		.8
 
 
 #define	LeftSpeed	CCPR1L
