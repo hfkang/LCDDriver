@@ -8,32 +8,32 @@
     extern  pidStat1,pidOut0,pidOut1,pidOut2
     extern  dispOperationData,dispCorrection,stepsH,stepsL,tempwreg
     
-    
     #define pid_sign	    7
 
-
-   
 main_bank    udata
 offset	    res	    1 
 direction   res	    1
 threshHtemp res	    1
 threshLtemp res	    1
-
+ramp	    res	    1
+baseline    res	    1
+rampinterval	res 1
     
     code
     global	CONFIG_PWM, STEPPER, REVERSE,FORWARD, PID, direction, threshHtemp, threshLtemp
+    global	ramp, baseline,rampinterval
     
 CONFIG_PWM			
 	;movlw	    B'01111111'	;configure PWM Period 
 	movlw	    DutyDefault
 	movwf	    PR2
 	;configure CCP Module #1
-	movlw	    LeftDefault	;configure duty cycle
+	movlw	    dutyStart	;configure duty cycle
 	movwf	    LeftSpeed
 	movlw	    B'00111100'	;configure duty cycle and RD5 forward, RD7 rev
 	movwf	    CCP1CON		
        ;configure CCP Module #2
-	movlw	    ActualDefault;configure CCPR2L
+	movlw	    dutyStart	;configure CCPR2L
 	movwf	    RightSpeed
 	movlw	    B'00111100'	;configure CCP2CON
 	movwf	    CCP2CON
@@ -44,8 +44,28 @@ CONFIG_PWM
 PID:	movff	    threshH,threshHtemp
 	movff	    threshL,threshLtemp
 	
-	movlf	    ActualDefault,LeftSpeed	;reset speeds to be equal
-	movlf	    ActualDefault,RightSpeed
+	movlf	    ActualDefault,baseline	;default baseline = 50% duty cycle
+
+	decfsz	    rampinterval
+	bra	    nexttime
+	
+	movlw	    ActualDefault
+	cpfsgt	    ramp			;increment ramp if we haven't reached setpoint yet
+	incf	    ramp
+	
+	movlf	    0x02,rampinterval
+	
+nexttime	
+	movlw	    ActualDefault
+	cpfsgt	    ramp			;also, use ramped baseline only if necessary 
+	movff	    ramp,baseline
+	
+	
+	
+	movff	    baseline,LeftSpeed	;reset speeds to be equal
+	movff	    baseline,RightSpeed
+	
+	
 	call	    PidMain
 	banksel	    mypidStat1
 
@@ -73,7 +93,7 @@ reversePIDMode
 	
 checkmagnitude
 	clrf	    threshH
-	movlf	    ActualDefault,threshL
+	movff	    baseline,threshL
 	comp16	    mypidOut1,mypidOut2,pid_overflow,pid_normal,pid_overflow
 	
 pid_normal:
@@ -99,12 +119,12 @@ reversePIDModeOverflow
 
 forceRight
 	clrf	    RightSpeed
-	movlf	    DutyDefault,LeftSpeed
+	movf	    baseline,LeftSpeed
 	bra	    pid_end
 	
 forceLeft
 	clrf	    LeftSpeed
-	movlf	    DutyDefault,RightSpeed
+	movf	    baseline,RightSpeed
 	bra	    pid_end
 	
 pid_end:

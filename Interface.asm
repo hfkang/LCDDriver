@@ -213,7 +213,9 @@ start
     clrf	mypidOut1	
     clrf	mypidOut2	
     clrf	mypidStat1	
-    clrf	ramp
+    movlf	0x2, rampinterval
+    movlf	ActualDefault,baseline
+    movlf	dutyStart,ramp
 	
     clrf	updates		
     clrf	encThreshL	
@@ -1023,7 +1025,10 @@ tobackward
     ;
     ;**********************************************************************
 testAN937    
+    banksel	AARGB2
     
+    clrf	AARGB3
+    clrf	BARGB3
     clrf	AARGB2
     clrf	BARGB2
     clrf	AARGB1
@@ -1031,10 +1036,10 @@ testAN937
     clrf	AARGB0
     clrf	BARGB0
     
-    movlf	0x01,AARGB1
-    movlf	0x01,BARGB0
+    movlf	0x10,AARGB2
+    movlf	0x02,BARGB1
     
-    call	_24_bit_sub
+    call	FXD2416U
     
 endtest	    bra	    endtest
     
@@ -1051,7 +1056,7 @@ testPID
 	bsf	    RightDirection	
 	call	    SuperDelay
 	reset_encoders
-	movlf	    .100,ramp
+	movlf	    dutyStart,ramp
 	startPWM
 	enableEncoders
 	movlf	D'255',updates
@@ -1062,16 +1067,15 @@ ploop
 	bra		ploop
 	call		dispOperationData
 	movlf		D'255',updates
-	movlf		0x01,threshH
-	movlf		0x99,threshL
+	movlf		0x06,threshH
+	movlf		0x1D,threshL
 	comp16		RightH,RightL,ReverseTest,ploop,ReverseTest
 	
 ReverseTest
-	
 	disableEncoders
 	stopPWM
 	call		REVERSE
-	movlf		.100,ramp
+	movlf		dutyStart,ramp
 	startPWM
 	enableEncoders
 ploop2	
