@@ -439,7 +439,7 @@ stahp_extend
     call		REVERSE	
     call		rampup
     startPWM
-    ;call		deslack
+    call		deslack
     enableEncoders
     
     
@@ -1152,9 +1152,9 @@ rampdown:
 	return 
 	
 deslack:
-	movlf	    Duty7,LeftSpeed
-	movlf	    Duty7,RightSpeed
-	delay	    0x40
+	movlf	    Duty5,LeftSpeed
+	movlf	    Duty10,RightSpeed
+	delay	    0x50
 	movff	    RightH,LeftH
 	movff	    RightL,LeftL
 	return

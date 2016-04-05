@@ -68,8 +68,8 @@ accelerate
 	bra	    nexttime
 
 deccelerate
-	decfsz	    rampinterval
-	bra	    nexttime
+	;decfsz	    rampinterval
+	;bra	    nexttime
 	movlw	    0x0A
 	cpfslt	    ramp 
 	decf	    ramp
