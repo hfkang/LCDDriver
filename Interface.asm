@@ -463,58 +463,6 @@ _pid2
     bcf		BUZZER
     call	PID		;adjust motor output speeds  
     
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    add16	threshH,threshL,poleOffset	;trigger to dodge pole
-    comp16	RightH,RightL,nopole,checkloc,checkloc
-    
-checkloc
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleRangeOffset
-    comp16	RightH,RightL,nearpole,nopole,nopole	;checks if we already passed the pole
-    
-nearpole
-    movff	PoleLocH,threshH
-    movff	PoleLocL,threshL
-    sub16	threshH,threshL,poleExtendOffset
-    comp16	RightH,RightL,retractarm,extendarm,retractarm	;extend arm if passed, otherwise retract arm
-
-retractarm							
-    dispText	RetractingArm,first_line
-    btfsc	retracted
-    bra		_pid2
-    stopPWM							;stop the motors
-    disableEncoders
-    call	loadsteps
-    bsf		retracted
-    retractStepper
-_ra    
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf		threshH
-    movlf		0x05,threshL
-    comp16		stepsH,stepsL,extend,_pid2,_pid2
-    
-extendarm   
-    dispText	ExtendingArm,first_line
-    btfsc	extended
-    bra		_pid2
-    stopPWM							;stop the motors
-    disableEncoders
-    call	loadsteps
-    bsf		extended
-    extendStepper
-_ea       
-    delay		StepDelay
-    call		STEPPER
-    sub16		stepsH,stepsL,1
-    clrf	threshH
-    movlf	0x05,threshL
-    comp16	stepsH,stepsL,_ea,_pid2,_pid2
-
-    
 nopole    
     stopStepperMotor
     lcdHomeLine
@@ -1153,8 +1101,8 @@ rampdown:
 	
 deslack:
 	movlf	    Duty5,LeftSpeed
-	movlf	    Duty10,RightSpeed
-	delay	    0x50
+	movlf	    Duty25,RightSpeed
+	delay	    0x40
 	movff	    RightH,LeftH
 	movff	    RightL,LeftL
 	return
