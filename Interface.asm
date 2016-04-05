@@ -465,7 +465,7 @@ _pid2
     
     movff	PoleLocH,threshH
     movff	PoleLocL,threshL
-    add16	threshH,threshL,poleOffset	;trigger to dodge pole
+    sub16	threshH,threshL,poleOffset	;trigger to dodge pole
     comp16	RightH,RightL,nopole,checkloc,checkloc
     
 checkloc
