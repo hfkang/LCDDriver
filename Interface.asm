@@ -1061,7 +1061,6 @@ testPID
 	startPWM
 	enableEncoders
 	movlf	D'255',updates
-	;return 
 ploop	
 	banksel		RightH
 	call		PID
@@ -1086,9 +1085,10 @@ head_back
 ReverseTest
 	disableEncoders
 	stopPWM
-	call		REVERSE
+	call		REVERSE	
 	call		rampup
 	startPWM
+	call		deslack
 	enableEncoders
 ploop2	
 	banksel		RightH
@@ -1149,6 +1149,13 @@ rampdown:
 	movlf	    ActualDefault,ramp
 	return 
 	
+deslack:
+	movlf	    Duty5,LeftSpeed
+	movlf	    Duty5,RightSpeed
+	delay	    0x40
+	movff	    RightH,LeftH
+	movff	    RightL,LeftL
+	return
     ;**********************************************************************
     ;
     ;			Stepper Driver Test 

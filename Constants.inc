@@ -64,7 +64,8 @@
 #define	Duty25		0x10
 #define	Duty35		.44
 #define	Duty30		D'38'
-#define Duty10		0x0C
+#define Duty10		0x0A
+#define Duty5		.6
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   

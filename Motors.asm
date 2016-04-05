@@ -57,16 +57,22 @@ accelerate
 	movlw	    ActualDefault
 	cpfsgt	    ramp			;increment ramp if we haven't reached setpoint yet
 	incf	    ramp
-	movlf	    0x88,rampinterval
+	
+	btfss	    direction,0
+	movlw	    .100			;FORWARD PASS RAMP UP DELAY
+	btfsc	    direction,0
+	movlw	    .100				;RETURN PASS RAMP UP DELAY
+	movwf	    rampinterval 
+	
 	bra	    nexttime
 
 deccelerate
 	decfsz	    rampinterval
 	bra	    nexttime
-	movlw	    0x02
+	movlw	    0x0A
 	cpfslt	    ramp 
 	decf	    ramp
-	movlf	    0x88,rampinterval
+	movlf	    .100,rampinterval
 	
 nexttime	
 	movlw	    ActualDefault
@@ -300,6 +306,8 @@ REVERSE
 	bsf	    direction,0		;set direction bit in direction register 
 	bcf	    LeftDirection
 	bcf	    RightDirection
+	movff	    RightH,LeftH
+	movff	    RightL,LeftL
 	return 
 
 FORWARD
