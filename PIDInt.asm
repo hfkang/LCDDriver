@@ -248,7 +248,7 @@ PidInitalize:
 	clrf	BARGB1
 	clrf	BARGB2
 				
-	movlw	.57       					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
+	movlw	.56       					;10 x 16, Kp, Ki & Kd are 8-bit vlaues that cannot exceed 255
 	movwf	kp						;Enter the PID gains scaled by a factor of 16, max = 255
 
 	movlw	.0				;10 x 16

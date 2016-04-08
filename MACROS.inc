@@ -113,6 +113,7 @@ storeBinData macro LocH, LocL, BinStatusReg, Side, Color
 	bra	    _rear	;if the Side bit is set then store color only
 	movff	    RightL, LocL	;this is for the front side bins
 	movff	    RightH, LocH
+	sub16	    LocH,LocL,.90
 	movlw	    Color	    	;store color in wreg to be stored in reg
 	movwf	    BinStatusReg
 	bra	    _end
@@ -345,6 +346,7 @@ resetrolling macro
 	movlf	0xFF,ultra2
 	movlf	0xFF,ultra3
 	movlf	0xFF,ultra4
+	movlf	0xFF,PoleL
 	endm
 	
 rollingavg macro reg,dest

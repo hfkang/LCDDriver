@@ -43,12 +43,13 @@
 #define	STEP_RETRACT	0x00
 
 #define DutyDefault	0x80
-#define	ActualDefault	Duty35
+#define	ActualDefault	DutyDefault
+#define	RightBias	Duty5
 #define	rampConstant	.180
 #define dutyStart	0x00
 
-#define	endDistH	0x03
-#define	endDistL	0x18
+#define	endDistH	0x06
+#define	endDistL	0x13
 #define endRampOffset	.204
 
 
@@ -60,12 +61,16 @@
 #define	Duty75		0x30
 #define	Duty70		0x2C
 #define	Duty50		0x40
+#define Duty40		.51
 #define	Duty60		.77
 #define	Duty25		0x10
 #define	Duty35		.44
 #define	Duty30		D'38'
 #define Duty10		0x0A
+#define Duty7		.9
 #define Duty5		.6
+#define	Duty6		.8
+
 
 #define	LeftSpeed	CCPR1L
 #define	RightSpeed	CCPR2L   
@@ -77,16 +82,16 @@
 #define	RightConfig	CCP2CON
 #define LeftDirection	LATE,1
 #define RightDirection	LATE,0
-#define	StepDelay	0x09
+#define	StepDelay	0x0B
 
 #define	STEPPER_SPEED	0xFE
 #define STEPPER_SPEEDL	0xD0
 
 #define	POLE_SPEED	0x25
-#define poleOffset	D'75'		;about one full wheel rev (22cm)
-#define poleRangeOffset	D'90'
-#define	poleExtendOffset    D'70'
-#define	armStepH	0x09
+#define poleOffset	D'5'		;about one full wheel rev (22cm)
+#define poleRangeOffset	D'130'
+#define	poleExtendOffset    D'120'
+#define	armStepH	0x13
 #define armStepL	0x5F
 #define	retracted	armState,0
 #define	extended	armState,1
