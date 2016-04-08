@@ -276,7 +276,7 @@ start
     ;goto	irtesting
     ;goto	testPID
     ;goto	ploop
-    goto	DRAG_RACE
+    ;goto	DRAG_RACE
     
     
     
@@ -1240,11 +1240,11 @@ ConfigureI2C
 ; ----------------------------------------------------------------------------
 InitializeRTC
         rtc_wr      seconds, d'0'       ; seconds
-        rtc_wr      minutes, 0x40       ; minutes
-        rtc_wr      hours, 0x21         ; hours
+        rtc_wr      minutes, 0x25       ; minutes
+        rtc_wr      hours, 0x17         ; hours
         rtc_wr      day, d'1'           ; days
-        rtc_wr      date, 0x19		; date
-        rtc_wr      month, d'3'         ; month
+        rtc_wr      date, 0x05		; date
+        rtc_wr      month, d'4'         ; month
         rtc_wr      year, 0x16		; year
         return
 
@@ -1437,9 +1437,10 @@ EndGetTimeTaken
 	
 
 DRAG_RACE
+	call	    FORWARD
 	enableEncoders
 	startPWM
-	resetrolling
+	reset_encoders 
 checkpid	
 	call	    PID
 	movlf	    endDistH,threshH

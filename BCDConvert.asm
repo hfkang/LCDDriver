@@ -1,4 +1,5 @@
 ;---------------- Binary (16-bit) to BCD -----------------------
+;   Source:	http://nnp.ucsd.edu/phy120b/0_pic_asm_files/bin_8_16_to_bcd.asm
 ;
 ;bin8_BCD:	; --- Takes Binary.number in      NumL
 ;bin16_BCD:	; --- Takes Binary.number in NumH:NumL 

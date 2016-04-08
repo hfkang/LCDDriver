@@ -48,38 +48,8 @@ PID:	movff	    threshH,threshHtemp
 	movlf	    ActualDefault,baseline	;default baseline = 50% duty cycle
 	
 
-	btfss	    rampstate,0
-	bra	    accelerate
-	bra	    deccelerate
-	
-accelerate 	
-	decfsz	    rampinterval
-	bra	    nexttime
-	movlw	    ActualDefault
-	cpfsgt	    ramp			;increment ramp if we haven't reached setpoint yet
-	incf	    ramp
-	
-	btfss	    direction,0
-	movlw	    .2				;FORWARD PASS RAMP UP DELAY
-	btfsc	    direction,0
-	movlw	    .2				;RETURN PASS RAMP UP DELAY
-	movwf	    rampinterval 
-	
-	bra	    nexttime
 
-deccelerate
-	;decfsz	    rampinterval
-	;bra	    nexttime
-	movlw	    0x0A
-	cpfslt	    ramp 
-	decf	    ramp
-	movlf	    .2,rampinterval
-	
 nexttime	
-	movlw	    ActualDefault
-	cpfsgt	    ramp			;also, use ramped baseline only if necessary 
-	movff	    ramp,baseline
-	
 	movff	    baseline,LeftSpeed	;reset speeds to be equal
 	movff	    baseline,RightSpeed
 	
